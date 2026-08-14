@@ -512,6 +512,6 @@ export function renderAchPaymentsHtml(lenderName: string, data: AchPaymentsData 
     <p>${formatDate(startDate)} – ${formatDate(endDate)}</p>
     ${checksHtml || "<p>No ACH payments in this range.</p>"}
     <p style="font-weight:bold">Total: ${formatCents(data?.totalAmountCents ?? 0)}</p>
-    <p style="font-size:0.85em;color:#666">Late Charges are the lender's own money and already included in Total. Other Charges are shown for context only — that revenue stays with SGMS and is never part of the Total paid to the lender.</p>
+    <p style="font-size:0.85em;color:#666">Late Charges are the lender's own money and already included in Total. Other Charges are shown for context only — that revenue stays with GPM and is never part of the Total paid to the lender.</p>
   `;
 }

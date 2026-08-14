@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import CompanyLogo from "./CompanyLogo";
 import { usePathname } from "next/navigation";
 import {
   FileText,
@@ -140,7 +140,7 @@ export default function Sidebar({ isSuperUser = false }: { isSuperUser?: boolean
   return (
     <nav className="w-60 shrink-0 border-r border-slate-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900 print:hidden">
       <div className="rounded-md bg-white px-4 py-5">
-        <Image src="/sgms-logo-full.png" alt="Success Group Mortgage & Servicing LLC" width={761} height={201} className="h-auto w-full" priority />
+        <CompanyLogo className="h-8" />
         <p className="mt-1 text-xs text-slate-400 dark:text-neutral-500">Land Contract Servicing</p>
       </div>
       <GlobalSearchBox />

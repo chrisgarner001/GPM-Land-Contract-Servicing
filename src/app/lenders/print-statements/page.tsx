@@ -74,7 +74,7 @@ export default async function LenderPaymentRunPage({
       </p>
       <p className="mb-6 text-xs text-slate-400">
         Late Charges are the lender&apos;s own money and are already included in Total. Other Charges are shown for
-        context only — that revenue stays with SGMS and is never part of the lender&apos;s Total.
+        context only — that revenue stays with GPM and is never part of the lender&apos;s Total.
       </p>
 
       {lenderBlocks.length === 0 ? (
@@ -128,7 +128,7 @@ export default async function LenderPaymentRunPage({
                             <th className="px-4 py-3 text-right">Principal</th>
                             <th className="px-4 py-3 text-right">Late Charges</th>
                             <th className="px-4 py-3 text-right">Other Charges</th>
-                            <th className="px-4 py-3 text-right">SGMS Fee</th>
+                            <th className="px-4 py-3 text-right">GPM Fee</th>
                             <th className="px-4 py-3 text-right">Total</th>
                             <th className="px-4 py-3">Release</th>
                           </tr>

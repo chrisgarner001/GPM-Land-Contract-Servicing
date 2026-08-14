@@ -182,7 +182,7 @@ export default async function AchPaymentsPage({
                     </div>
                     <p className="mt-3 text-xs text-slate-400">
                       Late Charges are the lender&apos;s own money and are already included in Total. Other Charges are
-                      shown for context only — that revenue stays with SGMS and is never part of the Total paid to
+                      shown for context only — that revenue stays with GPM and is never part of the Total paid to
                       the lender.
                     </p>
                   </div>

@@ -32,9 +32,9 @@ export default async function ProfitAndLossPage({
       <h1 className="mt-2 mb-1 text-xl font-semibold text-slate-900 print:hidden">Profit &amp; Loss</h1>
       <p className="mb-1 text-sm text-slate-500 print:hidden">Loan-servicing income over a date range.</p>
       <p className="mb-4 text-xs text-amber-700 print:hidden">
-        Servicing income only — this app has no general ledger and doesn't track operating expenses (payroll, rent,
+        Servicing income only — this app has no general ledger and doesn&apos;t track operating expenses (payroll, rent,
         etc.); those live in QuickBooks. Not the full company Profit &amp; Loss. Late fees are lender revenue, not
-        SGMS's, so they aren&apos;t shown here — see Lender Payment Run / ACH Payments.
+        GPM&apos;s, so they aren&apos;t shown here — see Lender Payment Run / ACH Payments.
       </p>
       <div className="print:hidden">
         <CategoryTabs basePath="/reports" />

@@ -17,7 +17,7 @@ export interface ChatMessage {
 // on most, so the drafted briefs stay grounded instead of inventing
 // architecture that doesn't exist here.
 const ARCHITECTURE_CONTEXT = `
-This is "Land Contract Servicing" (SGMS), a Next.js App Router app for a land-contract loan servicing business. Known facts to stay grounded in:
+This is "Land Contract Servicing" (GPM), a Next.js App Router app for a land-contract loan servicing business. Known facts to stay grounded in:
 - Solo-maintained, single \`main\` branch, no CI, no ticket tracker. Deploys via Vercel's git integration on push to main.
 - Layers: src/domain (pure business logic — amortization, escrow, ledger, lending, money — each with *.test.ts, this is where money math must stay correct), src/server (orchestration/DB writes), src/app (routes + colocated Server Actions in actions.ts), src/db/schema (Drizzle ORM, one file per area).
 - No REST/GraphQL API — everything is a Server Action. Auth is checked per-action, not centrally (aside from the staff Supabase-session gate in src/proxy.ts) — a new action that forgets to check who's calling it is a real, easy-to-miss gap.

@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useActionState } from "react";
+import CompanyLogo from "@/app/_components/CompanyLogo";
 import { lenderLoginAction, type LenderLoginState } from "../actions";
 
 export default function LoginForm() {
@@ -12,9 +12,9 @@ export default function LoginForm() {
 
   return (
     <div className="mx-auto mt-16 max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <Image src="/sgms-logo-full.png" alt="Success Group Mortgage & Servicing LLC" width={761} height={201} className="mb-6 h-auto w-full" priority />
+      <CompanyLogo className="mb-6 h-8" />
       <h1 className="text-lg font-semibold text-slate-900">Lender Portal</h1>
-      <p className="mt-1 text-sm text-slate-500">Sign in with the email and PIN provided by SGMS.</p>
+      <p className="mt-1 text-sm text-slate-500">Sign in with the email and PIN provided by GPM.</p>
 
       <form action={formAction} className="mt-4 space-y-3">
         <div>

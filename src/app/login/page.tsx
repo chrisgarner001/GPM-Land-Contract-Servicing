@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useActionState } from "react";
+import CompanyLogo from "@/app/_components/CompanyLogo";
 import { signIn } from "./actions";
 
 export default function LoginPage() {
@@ -10,7 +10,7 @@ export default function LoginPage() {
   return (
     <main className="flex flex-1 items-center justify-center bg-slate-50 px-4">
       <form action={action} className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <Image src="/sgms-logo-full.png" alt="Success Group Mortgage & Servicing LLC" width={761} height={201} className="mb-6 h-auto w-full" priority />
+        <CompanyLogo className="mb-6 h-8" />
         <h1 className="mb-1 text-lg font-semibold text-slate-900">Land Contract Servicing</h1>
         <p className="mb-6 text-sm text-slate-500">Sign in to continue.</p>
 
