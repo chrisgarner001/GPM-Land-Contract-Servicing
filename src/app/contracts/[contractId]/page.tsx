@@ -15,6 +15,7 @@ import RecordPaymentModal from "./_components/RecordPaymentModal";
 import NotesSection from "./_components/NotesSection";
 import StatusCard from "./_components/StatusCard";
 import LoanTypeField from "./_components/LoanTypeField";
+import EscrowSettingsField from "./_components/EscrowSettingsField";
 import AttachmentsSection from "./_components/AttachmentsSection";
 import ReversePaymentButton from "./_components/ReversePaymentButton";
 import DangerZoneCard from "./_components/DangerZoneCard";
@@ -155,6 +156,11 @@ export default async function ContractOverviewPage({ params }: { params: Promise
           <Field label="Note Rate" value={formatPercent(contract.interestRateAnnual)} />
           <Field label="Original Amount" value={formatCents(contract.originalPrincipalCents)} />
           <Field label="Term" value={`${contract.amortizationTermMonths} months`} />
+          <EscrowSettingsField
+            contractId={contractId}
+            escrowRequired={contract.escrowRequired}
+            monthlyEscrowPaymentCents={contract.monthlyEscrowPaymentCents}
+          />
         </Card>
 
         <Card title="Balances">

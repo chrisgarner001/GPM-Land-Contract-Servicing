@@ -308,6 +308,52 @@ export async function updateLoanType(
   return { success: "Loan type updated." };
 }
 
+export interface UpdateEscrowSettingsState {
+  error?: string;
+  success?: string;
+}
+
+// Turns escrow on/off for a contract after the fact — e.g. it was left
+// unchecked at onboarding by mistake, or a borrower's escrow requirement
+// changes later. Only sets escrowRequired + the billed monthlyEscrowPaymentCents
+// (see getCurrentEscrowPortionCents) — an opening/corrected balance, if
+// needed, is set separately via Run Escrow Analysis on the Escrow Analysis
+// tab, same as any other balance correction.
+export async function updateEscrowSettingsAction(
+  contractId: string,
+  _prevState: UpdateEscrowSettingsState | undefined,
+  formData: FormData
+): Promise<UpdateEscrowSettingsState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
+  const escrowRequired = formData.get("escrowRequired") === "1";
+  const monthlyEscrowPaymentDollars = formData.get("monthlyEscrowPayment");
+  let monthlyEscrowPaymentCents: number | null = null;
+  if (escrowRequired) {
+    if (typeof monthlyEscrowPaymentDollars !== "string" || !monthlyEscrowPaymentDollars.trim()) {
+      return { error: "Enter the monthly Escrow Payment, or uncheck Escrow Required." };
+    }
+    monthlyEscrowPaymentCents = Math.round(Number(monthlyEscrowPaymentDollars) * 100);
+    if (!Number.isFinite(monthlyEscrowPaymentCents) || monthlyEscrowPaymentCents < 0) {
+      return { error: "Enter a valid Escrow Payment amount." };
+    }
+  }
+
+  await db.update(contracts).set({ escrowRequired, monthlyEscrowPaymentCents }).where(eq(contracts.id, contractId));
+
+  revalidatePath(`/contracts/${contractId}`);
+  revalidatePath(`/contracts/${contractId}/escrow-analysis`);
+  return { success: "Escrow settings updated." };
+}
+
 export interface UpdateDriveFolderState {
   error?: string;
   success?: string;
