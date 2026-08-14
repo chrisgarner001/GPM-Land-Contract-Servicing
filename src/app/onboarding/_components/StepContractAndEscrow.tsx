@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { labelClass, fieldClass, inputClass } from "./fieldClass";
 import type { LandContractInitialValues } from "./NewContractWizard";
-import { runEscrowAnalysis } from "@/domain/escrow/runEscrowAnalysis";
 import { formatCents } from "@/lib/format";
 
 const sectionHeadClass = "mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400";
@@ -29,26 +28,13 @@ export default function StepContractAndEscrow({
   const [escrowRequired, setEscrowRequired] = useState(Boolean(initial?.escrowRequired));
 
   const [paymentAmount, setPaymentAmount] = useState(initial?.paymentAmount ?? "");
-  const [projectedAnnualTax, setProjectedAnnualTax] = useState(initial?.projectedAnnualTax ?? "");
-  const [projectedAnnualInsurance, setProjectedAnnualInsurance] = useState(initial?.projectedAnnualInsurance ?? "");
-  const [startingEscrowBalance, setStartingEscrowBalance] = useState(initial?.startingEscrowBalance ?? "0");
+  const [escrowPayment, setEscrowPayment] = useState(initial?.escrowPayment ?? "");
 
-  // Same methodology as runEscrowAnalysis at contract creation (trigger:
-  // "ONBOARDING") — a live preview so staff see the resulting escrow piece
-  // (and the borrower's real total payment) while they're still typing the
-  // tax/insurance projections below, instead of only after the contract
-  // exists. currentMonthlyEscrowPaymentCents is 0 here for the same reason
-  // it is at creation time: there's no payment history yet for a new
-  // contract, so there's nothing to carry forward.
-  const escrowPaymentCents = escrowRequired
-    ? runEscrowAnalysis({
-        currentEscrowBalanceCents: dollarsToCentsLocal(startingEscrowBalance),
-        currentMonthlyEscrowPaymentCents: 0,
-        projectedAnnualTaxCents: dollarsToCentsLocal(projectedAnnualTax),
-        projectedAnnualInsuranceCents: dollarsToCentsLocal(projectedAnnualInsurance),
-      }).newMonthlyEscrowPaymentCents
-    : 0;
-  const totalMonthlyPaymentCents = dollarsToCentsLocal(paymentAmount) + escrowPaymentCents;
+  // Straight from the land contract, not derived from the impound balance or
+  // any projection — if the LC says $X for escrow, $X is the payment, full
+  // stop. The starting balance/projected tax/insurance below are historical
+  // record-keeping only and don't feed this number.
+  const totalMonthlyPaymentCents = dollarsToCentsLocal(paymentAmount) + (escrowRequired ? dollarsToCentsLocal(escrowPayment) : 0);
 
   return (
     <div className="space-y-6">
@@ -132,6 +118,26 @@ export default function StepContractAndEscrow({
           </div>
         </div>
         <p className="mt-1 text-xs text-slate-400">Original Principal is typically Purchase Price − Down Payment.</p>
+
+        <div className="mt-3 max-w-xs">
+          <label className={labelClass} htmlFor="currentPrincipalBalance">
+            Current Principal Balance ($)
+          </label>
+          <input
+            id="currentPrincipalBalance"
+            name="currentPrincipalBalance"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="Same as Original Principal"
+            defaultValue={initial?.currentPrincipalBalance ?? ""}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-slate-400">
+            Leave blank for a brand-new contract. If we&apos;re taking over servicing of a land contract already in
+            progress, enter the actual balance as of today — it won&apos;t be assumed equal to Original Principal.
+          </p>
+        </div>
 
         <div className="mt-3 grid grid-cols-3 gap-3">
           <div>
@@ -224,21 +230,33 @@ export default function StepContractAndEscrow({
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-3 rounded-md bg-slate-50 p-3 text-sm">
-          <div>
-            <p className="text-xs text-slate-500">Escrow Payment (est.)</p>
-            <p className="font-medium tabular-nums text-slate-900">{escrowRequired ? formatCents(escrowPaymentCents) : "—"}</p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500">Total Monthly Payment</p>
-            <p className="font-medium tabular-nums text-slate-900">{formatCents(totalMonthlyPaymentCents)}</p>
-          </div>
-        </div>
         {escrowRequired && (
-          <p className="mt-1 text-xs text-slate-400">
-            Estimated from Projected Annual Tax &amp; Insurance below (÷12, less any Starting Escrow Balance) — the actual
-            escrow analysis is finalized after the contract is created.
-          </p>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass} htmlFor="escrowPayment">
+                Escrow Payment ($)
+              </label>
+              <input
+                id="escrowPayment"
+                name="escrowPayment"
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                placeholder="As stated on the land contract"
+                value={escrowPayment}
+                onChange={(e) => setEscrowPayment(e.target.value)}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Straight from the land contract — not calculated from the impound balance below.
+              </p>
+            </div>
+            <div className="rounded-md bg-slate-50 p-3 text-sm">
+              <p className="text-xs text-slate-500">Total Monthly Payment (P&amp;I + Escrow)</p>
+              <p className="font-medium tabular-nums text-slate-900">{formatCents(totalMonthlyPaymentCents)}</p>
+            </div>
+          </div>
         )}
 
         <div className="mt-3 grid grid-cols-3 gap-3">
@@ -267,6 +285,7 @@ export default function StepContractAndEscrow({
               defaultValue={initial?.firstPaymentDate ?? ""}
               className={fieldClass(initial?.firstPaymentDate, highlightMissing)}
             />
+            <p className="mt-1 text-xs text-slate-400">The LC&apos;s own original first payment date, for the record.</p>
           </div>
           <div>
             <label className={labelClass} htmlFor="maturityDate">
@@ -280,6 +299,24 @@ export default function StepContractAndEscrow({
               className={fieldClass(initial?.maturityDate, highlightMissing)}
             />
           </div>
+        </div>
+
+        <div className="mt-3 max-w-xs">
+          <label className={labelClass} htmlFor="nextPaymentDate">
+            Next Payment Date (collected by us)
+          </label>
+          <input
+            id="nextPaymentDate"
+            name="nextPaymentDate"
+            type="date"
+            placeholder="Same as First Payment Date"
+            defaultValue={initial?.nextPaymentDate ?? ""}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-slate-400">
+            Leave blank if this matches First Payment Date. If we&apos;re taking over servicing mid-term, enter the
+            next payment date we&apos;ll actually be collecting.
+          </p>
         </div>
       </div>
 
@@ -416,8 +453,7 @@ export default function StepContractAndEscrow({
                   step="0.01"
                   min="0"
                   required={escrowRequired}
-                  value={projectedAnnualTax}
-                  onChange={(e) => setProjectedAnnualTax(e.target.value)}
+                  defaultValue={initial?.projectedAnnualTax ?? ""}
                   className={inputClass}
                 />
               </div>
@@ -432,14 +468,13 @@ export default function StepContractAndEscrow({
                   step="0.01"
                   min="0"
                   required={escrowRequired}
-                  value={projectedAnnualInsurance}
-                  onChange={(e) => setProjectedAnnualInsurance(e.target.value)}
+                  defaultValue={initial?.projectedAnnualInsurance ?? ""}
                   className={inputClass}
                 />
               </div>
               <div>
                 <label className={labelClass} htmlFor="startingEscrowBalance">
-                  Starting Escrow Balance ($)
+                  Starting Escrow/Impound Balance ($)
                 </label>
                 <input
                   id="startingEscrowBalance"
@@ -447,16 +482,14 @@ export default function StepContractAndEscrow({
                   type="number"
                   step="0.01"
                   min="0"
-                  value={startingEscrowBalance}
-                  onChange={(e) => setStartingEscrowBalance(e.target.value)}
+                  defaultValue={initial?.startingEscrowBalance ?? "0"}
                   className={inputClass}
                 />
               </div>
             </div>
             <p className="mt-2 text-xs text-slate-400">
-              The Escrow Payment shown above under Payment Schedule updates live from these figures — this sets the
-              recommended starting monthly escrow payment, visible on the contract&apos;s Escrow Analysis tab after it&apos;s
-              created.
+              Record-keeping only — the balance already sitting in the impound account as of today. It has no effect
+              on the Escrow Payment amount above; that comes straight from the land contract.
             </p>
           </div>
         )}

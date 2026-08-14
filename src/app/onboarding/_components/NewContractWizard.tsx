@@ -119,6 +119,7 @@ export interface LandContractInitialValues {
   purchasePrice?: string | null;
   downPayment?: string | null;
   originalPrincipal?: string | null;
+  currentPrincipalBalance?: string | null;
   interestRateAnnual?: string | null;
   interestMethod?: "SIMPLE_30_360" | "SIMPLE_ACTUAL_365" | null;
   amortizationTermMonths?: string | null;
@@ -127,6 +128,7 @@ export interface LandContractInitialValues {
   paymentFrequency?: "MONTHLY" | "SEMI_MONTHLY" | "BIWEEKLY" | null;
   originationDate?: string | null;
   firstPaymentDate?: string | null;
+  nextPaymentDate?: string | null;
   maturityDate?: string | null;
   lateFeeType?: "FLAT" | "PERCENT_OF_PI" | "PERCENT_OF_TOTAL_PAYMENT" | null;
   lateFeeAmount?: string | null;
@@ -136,6 +138,7 @@ export interface LandContractInitialValues {
   balloonAmount?: string | null;
   balloonDueDate?: string | null;
   escrowRequired?: boolean | null;
+  escrowPayment?: string | null;
   projectedAnnualTax?: string | null;
   projectedAnnualInsurance?: string | null;
   startingEscrowBalance?: string | null;

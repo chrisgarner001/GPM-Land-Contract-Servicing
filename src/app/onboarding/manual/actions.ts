@@ -279,17 +279,29 @@ async function createLandContract(
   const purchasePriceCents = dollarsToCents(formData.get("purchasePrice"));
   const downPaymentCents = dollarsToCents(formData.get("downPayment"));
   const originalPrincipalCents = dollarsToCents(formData.get("originalPrincipal"));
+  // Only differs from Original Principal when taking over servicing of a
+  // land contract already partway through its term — left blank, it's the
+  // same brand-new-origination case as before.
+  const currentPrincipalBalanceRaw = trimmedOrNull(formData.get("currentPrincipalBalance"));
   const interestRateAnnual = Number(formData.get("interestRateAnnual"));
   const amortizationTermMonths = Number(formData.get("amortizationTermMonths"));
   const paymentAmountCents = dollarsToCents(formData.get("paymentAmount"));
   const originationDate = trimmedOrNull(formData.get("originationDate"));
   const firstPaymentDate = trimmedOrNull(formData.get("firstPaymentDate"));
+  // The LC's own first payment date is a historical fact; the date WE start
+  // collecting can differ when taking over servicing mid-term. Left blank,
+  // it's the same date, matching a brand-new origination.
+  const nextPaymentDate = trimmedOrNull(formData.get("nextPaymentDate")) ?? firstPaymentDate;
   const maturityDate = trimmedOrNull(formData.get("maturityDate"));
 
   if (!contractNumber) return { error: "Contract Number is required." };
   if (purchasePriceCents === null || purchasePriceCents < 0) return { error: "Enter a valid Purchase Price." };
   if (downPaymentCents === null || downPaymentCents < 0) return { error: "Enter a valid Down Payment." };
   if (originalPrincipalCents === null || originalPrincipalCents < 0) return { error: "Enter a valid Original Principal Balance." };
+  const currentPrincipalBalanceCents = currentPrincipalBalanceRaw ? dollarsToCents(formData.get("currentPrincipalBalance")) : originalPrincipalCents;
+  if (currentPrincipalBalanceCents === null || currentPrincipalBalanceCents < 0) {
+    return { error: "Enter a valid Current Principal Balance." };
+  }
   if (!Number.isFinite(interestRateAnnual) || interestRateAnnual < 0) return { error: "Enter a valid Interest Rate." };
   if (!Number.isFinite(amortizationTermMonths) || amortizationTermMonths <= 0) return { error: "Enter a valid Amortization Term." };
   if (paymentAmountCents === null || paymentAmountCents < 0) return { error: "Enter a valid Payment Amount." };
@@ -314,9 +326,17 @@ async function createLandContract(
   }
 
   const escrowRequired = formData.get("escrowRequired") === "1";
+  // Straight from the land contract — never derived from the impound
+  // balance or the tax/insurance projections below (those are historical
+  // record-keeping only; see the schema comment on contracts.escrowRequired
+  // / the Escrow Setup step's own note).
+  const escrowPaymentCents = escrowRequired ? dollarsToCents(formData.get("escrowPayment")) : null;
   const projectedAnnualTaxCents = escrowRequired ? dollarsToCents(formData.get("projectedAnnualTax")) : null;
   const projectedAnnualInsuranceCents = escrowRequired ? dollarsToCents(formData.get("projectedAnnualInsurance")) : null;
   const startingEscrowBalanceCents = escrowRequired ? dollarsToCents(formData.get("startingEscrowBalance")) ?? 0 : null;
+  if (escrowRequired && (escrowPaymentCents === null || escrowPaymentCents < 0)) {
+    return { error: "Enter a valid Escrow Payment amount, or uncheck Escrow Required." };
+  }
   if (escrowRequired && (projectedAnnualTaxCents === null || projectedAnnualInsuranceCents === null)) {
     return { error: "Enter valid Projected Annual Tax and Insurance amounts, or uncheck Escrow Required." };
   }
@@ -355,7 +375,7 @@ async function createLandContract(
         purchasePriceCents,
         downPaymentCents,
         originalPrincipalCents,
-        currentPrincipalBalanceCents: originalPrincipalCents,
+        currentPrincipalBalanceCents,
         interestRateAnnual: interestRateAnnual.toFixed(4),
         interestMethod,
         loanType,
@@ -366,7 +386,7 @@ async function createLandContract(
         originationDate,
         firstPaymentDate,
         maturityDate,
-        nextPaymentDate: firstPaymentDate,
+        nextPaymentDate,
         hasBalloon,
         balloonAmountCents,
         balloonDueDate,
@@ -429,11 +449,15 @@ async function createLandContract(
       endDate: null,
     });
 
-    if (escrowRequired && projectedAnnualTaxCents !== null && projectedAnnualInsuranceCents !== null) {
+    if (escrowRequired && projectedAnnualTaxCents !== null && projectedAnnualInsuranceCents !== null && escrowPaymentCents !== null) {
       const today = new Date().toISOString().slice(0, 10);
-      const result = runEscrowAnalysis({
+      // Informational only — projects where the impound balance would land
+      // given the STATED escrow payment (never the other way around; the
+      // payment amount comes straight from the land contract, full stop, and
+      // is never adjusted to chase a cushion target here).
+      const projection = runEscrowAnalysis({
         currentEscrowBalanceCents: startingEscrowBalanceCents ?? 0,
-        currentMonthlyEscrowPaymentCents: 0,
+        currentMonthlyEscrowPaymentCents: escrowPaymentCents,
         projectedAnnualTaxCents,
         projectedAnnualInsuranceCents,
       });
@@ -445,12 +469,15 @@ async function createLandContract(
         trigger: "ONBOARDING",
         projectedAnnualTaxCents,
         projectedAnnualInsuranceCents,
-        cushionTargetCents: result.cushionTargetCents,
+        cushionTargetCents: projection.cushionTargetCents,
         currentEscrowBalanceCents: startingEscrowBalanceCents ?? 0,
-        currentMonthlyEscrowPaymentCents: 0,
-        projectedEndingBalanceCents: result.projectedEndingBalanceCents,
-        shortageOrSurplusCents: result.shortageOrSurplusCents,
-        newMonthlyEscrowPaymentCents: result.newMonthlyEscrowPaymentCents,
+        currentMonthlyEscrowPaymentCents: escrowPaymentCents,
+        projectedEndingBalanceCents: projection.projectedEndingBalanceCents,
+        shortageOrSurplusCents: projection.shortageOrSurplusCents,
+        // The land contract's stated figure, NOT projection.newMonthlyEscrowPaymentCents
+        // — this row is a record of what's actually being collected, not a
+        // recommendation this action decided to apply.
+        newMonthlyEscrowPaymentCents: escrowPaymentCents,
       });
 
       // Every other page that shows "Escrow Balance" reads the running
@@ -467,11 +494,10 @@ async function createLandContract(
         category: "IMPOUND",
       });
 
-      // Becomes the real escrow amount billed on the contract's payments
-      // going forward (see getCurrentEscrowPortionCents) — otherwise this
-      // computed figure was stranded on the analysis row and had zero
-      // effect on what the borrower actually gets charged.
-      await tx.update(contracts).set({ monthlyEscrowPaymentCents: result.newMonthlyEscrowPaymentCents }).where(eq(contracts.id, contract.id));
+      // The real escrow amount billed on the contract's payments going
+      // forward (see getCurrentEscrowPortionCents) — straight from the land
+      // contract, exactly as entered above.
+      await tx.update(contracts).set({ monthlyEscrowPaymentCents: escrowPaymentCents }).where(eq(contracts.id, contract.id));
     }
 
     if (linkDraft) {
