@@ -4,6 +4,19 @@ import { useState } from "react";
 import { labelClass, fieldClass, inputClass } from "./fieldClass";
 import type { LandContractInitialValues } from "./NewContractWizard";
 
+// Looks up `${prefix}${suffix}` (e.g. "borrower" + "MailingCity") on a
+// possibly-undefined initial-values object — used for the fields below that
+// don't need Import's amber "missing" highlighting, so they don't need a
+// named prop per prefix like the fields above them do.
+function ival(initial: LandContractInitialValues | undefined, prefix: string, suffix: string): string {
+  const v = initial?.[`${prefix}${suffix}` as keyof LandContractInitialValues];
+  return typeof v === "string" ? v : "";
+}
+
+function ibool(initial: LandContractInitialValues | undefined, prefix: string, suffix: string): boolean {
+  return Boolean(initial?.[`${prefix}${suffix}` as keyof LandContractInitialValues]);
+}
+
 function PersonFields({
   prefix,
   required,
@@ -142,7 +155,7 @@ function PersonFields({
           <label className={labelClass} htmlFor={`${prefix}EmailFormat`}>
             Email Format
           </label>
-          <select id={`${prefix}EmailFormat`} name={`${prefix}EmailFormat`} defaultValue="HTML" className={inputClass}>
+          <select id={`${prefix}EmailFormat`} name={`${prefix}EmailFormat`} defaultValue={ival(initial, prefix, "EmailFormat") || "HTML"} className={inputClass}>
             <option value="HTML">HTML</option>
             <option value="TEXT">Text</option>
           </select>
@@ -154,25 +167,37 @@ function PersonFields({
           <label className={labelClass} htmlFor={`${prefix}PhoneHome`}>
             Home Phone
           </label>
-          <input id={`${prefix}PhoneHome`} name={`${prefix}PhoneHome`} type="text" defaultValue={phone ?? ""} className={inputClass} />
+          <input
+            id={`${prefix}PhoneHome`}
+            name={`${prefix}PhoneHome`}
+            type="text"
+            defaultValue={ival(initial, prefix, "PhoneHome") || phone || ""}
+            className={inputClass}
+          />
         </div>
         <div>
           <label className={labelClass} htmlFor={`${prefix}PhoneWork`}>
             Work Phone
           </label>
-          <input id={`${prefix}PhoneWork`} name={`${prefix}PhoneWork`} type="text" className={inputClass} />
+          <input id={`${prefix}PhoneWork`} name={`${prefix}PhoneWork`} type="text" defaultValue={ival(initial, prefix, "PhoneWork")} className={inputClass} />
         </div>
         <div>
           <label className={labelClass} htmlFor={`${prefix}PhoneMobile`}>
             Mobile Phone
           </label>
-          <input id={`${prefix}PhoneMobile`} name={`${prefix}PhoneMobile`} type="text" className={inputClass} />
+          <input
+            id={`${prefix}PhoneMobile`}
+            name={`${prefix}PhoneMobile`}
+            type="text"
+            defaultValue={ival(initial, prefix, "PhoneMobile")}
+            className={inputClass}
+          />
         </div>
         <div>
           <label className={labelClass} htmlFor={`${prefix}PhoneFax`}>
             Fax
           </label>
-          <input id={`${prefix}PhoneFax`} name={`${prefix}PhoneFax`} type="text" className={inputClass} />
+          <input id={`${prefix}PhoneFax`} name={`${prefix}PhoneFax`} type="text" defaultValue={ival(initial, prefix, "PhoneFax")} className={inputClass} />
         </div>
       </div>
 
@@ -183,39 +208,63 @@ function PersonFields({
             <label className={labelClass} htmlFor={`${prefix}MailingAddressLine1`}>
               Address Line 1
             </label>
-            <input id={`${prefix}MailingAddressLine1`} name={`${prefix}MailingAddressLine1`} type="text" className={inputClass} />
+            <input
+              id={`${prefix}MailingAddressLine1`}
+              name={`${prefix}MailingAddressLine1`}
+              type="text"
+              defaultValue={ival(initial, prefix, "MailingAddressLine1")}
+              className={inputClass}
+            />
           </div>
           <div className="col-span-2">
             <label className={labelClass} htmlFor={`${prefix}MailingAddressLine2`}>
               Address Line 2
             </label>
-            <input id={`${prefix}MailingAddressLine2`} name={`${prefix}MailingAddressLine2`} type="text" className={inputClass} />
+            <input
+              id={`${prefix}MailingAddressLine2`}
+              name={`${prefix}MailingAddressLine2`}
+              type="text"
+              defaultValue={ival(initial, prefix, "MailingAddressLine2")}
+              className={inputClass}
+            />
           </div>
           <div>
             <label className={labelClass} htmlFor={`${prefix}MailingCity`}>
               City
             </label>
-            <input id={`${prefix}MailingCity`} name={`${prefix}MailingCity`} type="text" className={inputClass} />
+            <input id={`${prefix}MailingCity`} name={`${prefix}MailingCity`} type="text" defaultValue={ival(initial, prefix, "MailingCity")} className={inputClass} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={labelClass} htmlFor={`${prefix}MailingState`}>
                 State
               </label>
-              <input id={`${prefix}MailingState`} name={`${prefix}MailingState`} type="text" className={inputClass} />
+              <input
+                id={`${prefix}MailingState`}
+                name={`${prefix}MailingState`}
+                type="text"
+                defaultValue={ival(initial, prefix, "MailingState")}
+                className={inputClass}
+              />
             </div>
             <div>
               <label className={labelClass} htmlFor={`${prefix}MailingZip`}>
                 Zip
               </label>
-              <input id={`${prefix}MailingZip`} name={`${prefix}MailingZip`} type="text" className={inputClass} />
+              <input id={`${prefix}MailingZip`} name={`${prefix}MailingZip`} type="text" defaultValue={ival(initial, prefix, "MailingZip")} className={inputClass} />
             </div>
           </div>
           <div className="col-span-2">
             <label className={labelClass} htmlFor={`${prefix}MailingCountry`}>
               Country
             </label>
-            <input id={`${prefix}MailingCountry`} name={`${prefix}MailingCountry`} type="text" defaultValue="United States" className={inputClass} />
+            <input
+              id={`${prefix}MailingCountry`}
+              name={`${prefix}MailingCountry`}
+              type="text"
+              defaultValue={ival(initial, prefix, "MailingCountry") || "United States"}
+              className={inputClass}
+            />
           </div>
         </div>
       </div>
@@ -227,13 +276,13 @@ function PersonFields({
             <label className={labelClass} htmlFor={`${prefix}TaxId`}>
               TIN
             </label>
-            <input id={`${prefix}TaxId`} name={`${prefix}TaxId`} type="text" placeholder="•••••••••" className={inputClass} />
+            <input id={`${prefix}TaxId`} name={`${prefix}TaxId`} type="text" placeholder="•••••••••" defaultValue={ival(initial, prefix, "TaxId")} className={inputClass} />
           </div>
           <div>
             <label className={labelClass} htmlFor={`${prefix}TinType`}>
               TIN Type
             </label>
-            <select id={`${prefix}TinType`} name={`${prefix}TinType`} defaultValue="SSN" className={inputClass}>
+            <select id={`${prefix}TinType`} name={`${prefix}TinType`} defaultValue={ival(initial, prefix, "TinType") || "SSN"} className={inputClass}>
               <option value="SSN">SSN</option>
               <option value="EIN">EIN</option>
             </select>
@@ -242,7 +291,7 @@ function PersonFields({
             <label className={labelClass} htmlFor={`${prefix}LegalStructure`}>
               Legal Structure
             </label>
-            <select id={`${prefix}LegalStructure`} name={`${prefix}LegalStructure`} defaultValue="" className={inputClass}>
+            <select id={`${prefix}LegalStructure`} name={`${prefix}LegalStructure`} defaultValue={ival(initial, prefix, "LegalStructure")} className={inputClass}>
               <option value="">—</option>
               <option value="Corporation">Corporation</option>
               <option value="Individual">Individual</option>
@@ -256,13 +305,19 @@ function PersonFields({
             <label className={labelClass} htmlFor={`${prefix}DateOfBirth`}>
               Date of Birth
             </label>
-            <input id={`${prefix}DateOfBirth`} name={`${prefix}DateOfBirth`} type="date" className={inputClass} />
+            <input id={`${prefix}DateOfBirth`} name={`${prefix}DateOfBirth`} type="date" defaultValue={ival(initial, prefix, "DateOfBirth")} className={inputClass} />
           </div>
           <div className="col-span-2">
             <label className={labelClass} htmlFor={`${prefix}AlternateTaxInfo`}>
               Alternate Tax Info
             </label>
-            <input id={`${prefix}AlternateTaxInfo`} name={`${prefix}AlternateTaxInfo`} type="text" className={inputClass} />
+            <input
+              id={`${prefix}AlternateTaxInfo`}
+              name={`${prefix}AlternateTaxInfo`}
+              type="text"
+              defaultValue={ival(initial, prefix, "AlternateTaxInfo")}
+              className={inputClass}
+            />
           </div>
         </div>
 
@@ -270,15 +325,15 @@ function PersonFields({
           <p className="mb-1 text-xs text-slate-500">Delivery Options</p>
           <div className="flex gap-4 text-sm text-slate-700">
             <label className="flex items-center gap-1.5">
-              <input type="checkbox" name={`${prefix}DeliveryByPrint`} value="1" />
+              <input type="checkbox" name={`${prefix}DeliveryByPrint`} value="1" defaultChecked={ibool(initial, prefix, "DeliveryByPrint")} />
               Print
             </label>
             <label className="flex items-center gap-1.5">
-              <input type="checkbox" name={`${prefix}DeliveryByEmail`} value="1" />
+              <input type="checkbox" name={`${prefix}DeliveryByEmail`} value="1" defaultChecked={ibool(initial, prefix, "DeliveryByEmail")} />
               Email
             </label>
             <label className="flex items-center gap-1.5">
-              <input type="checkbox" name={`${prefix}DeliveryBySms`} value="1" />
+              <input type="checkbox" name={`${prefix}DeliveryBySms`} value="1" defaultChecked={ibool(initial, prefix, "DeliveryBySms")} />
               SMS
             </label>
           </div>
@@ -288,19 +343,19 @@ function PersonFields({
           <p className="mb-1 text-xs text-slate-500">Notices &amp; Forms</p>
           <div className="grid grid-cols-2 gap-1 text-sm text-slate-700">
             <label className="flex items-center gap-1.5">
-              <input type="checkbox" name={`${prefix}SendTaxReporting`} value="1" />
+              <input type="checkbox" name={`${prefix}SendTaxReporting`} value="1" defaultChecked={ibool(initial, prefix, "SendTaxReporting")} />
               Tax Reporting
             </label>
             <label className="flex items-center gap-1.5">
-              <input type="checkbox" name={`${prefix}SendLateNotices`} value="1" />
+              <input type="checkbox" name={`${prefix}SendLateNotices`} value="1" defaultChecked={ibool(initial, prefix, "SendLateNotices")} />
               Send Late Notices
             </label>
             <label className="flex items-center gap-1.5">
-              <input type="checkbox" name={`${prefix}SendPaymentReceipts`} value="1" />
+              <input type="checkbox" name={`${prefix}SendPaymentReceipts`} value="1" defaultChecked={ibool(initial, prefix, "SendPaymentReceipts")} />
               Send Payment Receipts
             </label>
             <label className="flex items-center gap-1.5">
-              <input type="checkbox" name={`${prefix}SendPaymentStatements`} value="1" />
+              <input type="checkbox" name={`${prefix}SendPaymentStatements`} value="1" defaultChecked={ibool(initial, prefix, "SendPaymentStatements")} />
               Send Payment Statements
             </label>
           </div>

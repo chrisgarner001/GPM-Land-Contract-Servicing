@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { parties, partyTypeEnum, propertyTypeEnum, properties, emailFormatEnum, tinTypeEnum } from "@/db/schema/parties";
@@ -13,12 +14,19 @@ import {
   paymentFrequencyEnum,
   lateFeeTypeEnum,
 } from "@/db/schema/contracts";
+import { contractOnboardingDrafts } from "@/db/schema/contractOnboardingDrafts";
 import { escrowAnalyses } from "@/db/schema/escrow";
 import { runEscrowAnalysis } from "@/domain/escrow/runEscrowAnalysis";
 import { encryptPII } from "@/lib/encryption";
+import { createClient } from "@/lib/supabase/server";
+import { createContractDraft, getContractDraft, saveContractDraft, type ContractDraftAnswers } from "@/server/contractDrafts";
 
-export interface CreateLandContractState {
+// Shared by createLandContractAction (Import flow, no draft) and
+// submitContractDraftAction (Manual entry flow, draft-backed) so
+// NewContractWizard's single useActionState hook can bind either one.
+export interface WizardFormState {
   error?: string;
+  success?: string;
 }
 
 function trimmedOrNull(value: FormDataEntryValue | null): string | null {
@@ -151,10 +159,29 @@ function readPersonInsertValues(person: PersonInput) {
   };
 }
 
-export async function createLandContractAction(
-  _prevState: CreateLandContractState | undefined,
-  formData: FormData
-): Promise<CreateLandContractState> {
+function collectAnswers(formData: FormData): ContractDraftAnswers {
+  const answers: ContractDraftAnswers = {};
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === "string" && key !== "intent") answers[key] = value;
+  }
+  return answers;
+}
+
+interface CreateLandContractResult {
+  contractId?: string;
+  error?: string;
+}
+
+// The actual Borrower+Lender+Property+Contract creation — shared by both the
+// Import flow (no draft to link) and the Manual entry flow's "Create
+// Contract" intent (draft-backed; on success the draft is marked PUBLISHED
+// in the same transaction so it never comes back as an editable draft
+// again — unlike land_contract_packages, creating a contract has real,
+// non-idempotent side effects, so this can't safely run twice).
+async function createLandContract(
+  formData: FormData,
+  linkDraft?: { id: string; updatedBy: string | null }
+): Promise<CreateLandContractResult> {
   const borrower = readPerson(formData, "borrower");
   if (!borrower) {
     return { error: "Borrower name is required." };
@@ -420,8 +447,59 @@ export async function createLandContractAction(
       });
     }
 
+    if (linkDraft) {
+      await tx
+        .update(contractOnboardingDrafts)
+        .set({ status: "PUBLISHED", publishedContractId: contract.id, publishedAt: new Date(), updatedBy: linkDraft.updatedBy, updatedAt: new Date() })
+        .where(eq(contractOnboardingDrafts.id, linkDraft.id));
+    }
+
     return contract.id;
   });
 
-  redirect(`/contracts/${contractId}`);
+  return { contractId };
+}
+
+export async function createLandContractAction(_prevState: WizardFormState | undefined, formData: FormData): Promise<WizardFormState> {
+  const result = await createLandContract(formData);
+  if (result.error) return { error: result.error };
+  redirect(`/contracts/${result.contractId}`);
+}
+
+export async function submitContractDraftAction(
+  draftId: string,
+  _prevState: WizardFormState | undefined,
+  formData: FormData
+): Promise<WizardFormState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const updatedBy = user?.email ?? null;
+
+  if (formData.get("intent") === "save") {
+    await saveContractDraft(draftId, collectAnswers(formData), updatedBy);
+    revalidatePath(`/onboarding/manual/${draftId}`);
+    revalidatePath("/onboarding/manual");
+    return { success: "Draft saved." };
+  }
+
+  const draft = await getContractDraft(draftId);
+  if (!draft) return { error: "Draft not found." };
+  if (draft.status === "PUBLISHED") return { error: "This draft has already been used to create a contract." };
+
+  const result = await createLandContract(formData, { id: draftId, updatedBy });
+  if (result.error) return { error: result.error };
+
+  revalidatePath("/onboarding/manual");
+  redirect(`/contracts/${result.contractId}`);
+}
+
+export async function createDraftAction(): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const id = await createContractDraft(user?.email ?? null);
+  redirect(`/onboarding/manual/${id}`);
 }

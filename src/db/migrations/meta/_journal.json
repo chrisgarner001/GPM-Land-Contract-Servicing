@@ -372,6 +372,13 @@
       "when": 1786708684445,
       "tag": "0052_steep_karma",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1786716290453,
+      "tag": "0053_furry_george_stacy",
+      "breakpoints": true
     }
   ]
 }

@@ -2,10 +2,19 @@
 
 import { useState } from "react";
 import { labelClass, inputClass } from "./fieldClass";
+import type { LandContractInitialValues } from "./NewContractWizard";
 
-export default function StepLender({ existingLenders }: { existingLenders: { id: string; displayName: string }[] }) {
-  const [lenderMode, setLenderMode] = useState<"existing" | "new">(existingLenders.length > 0 ? "existing" : "new");
-  const [newPartyType, setNewPartyType] = useState<"BUSINESS" | "INDIVIDUAL">("BUSINESS");
+export default function StepLender({
+  existingLenders,
+  initial,
+}: {
+  existingLenders: { id: string; displayName: string }[];
+  initial?: LandContractInitialValues;
+}) {
+  const [lenderMode, setLenderMode] = useState<"existing" | "new">(
+    initial?.lenderMode ?? (existingLenders.length > 0 ? "existing" : "new")
+  );
+  const [newPartyType, setNewPartyType] = useState<"BUSINESS" | "INDIVIDUAL">(initial?.lenderNewPartyType ?? "BUSINESS");
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -37,7 +46,13 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
             <label className={labelClass} htmlFor="lenderExistingPartyId">
               Lender
             </label>
-            <select id="lenderExistingPartyId" name="lenderExistingPartyId" required className={inputClass} defaultValue="">
+            <select
+              id="lenderExistingPartyId"
+              name="lenderExistingPartyId"
+              required
+              className={inputClass}
+              defaultValue={initial?.lenderExistingPartyId ?? ""}
+            >
               <option value="" disabled>
                 Select a lender…
               </option>
@@ -80,7 +95,14 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
               <label className={labelClass} htmlFor="lenderDisplayName">
                 {newPartyType === "INDIVIDUAL" ? "Full Name" : "Company Name"}
               </label>
-              <input id="lenderDisplayName" name="lenderDisplayName" type="text" required className={inputClass} />
+              <input
+                id="lenderDisplayName"
+                name="lenderDisplayName"
+                type="text"
+                required
+                defaultValue={initial?.lenderDisplayName ?? ""}
+                className={inputClass}
+              />
             </div>
 
             {newPartyType === "INDIVIDUAL" && (
@@ -89,13 +111,13 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
                   <label className={labelClass} htmlFor="lenderFirstName">
                     First Name
                   </label>
-                  <input id="lenderFirstName" name="lenderFirstName" type="text" className={inputClass} />
+                  <input id="lenderFirstName" name="lenderFirstName" type="text" defaultValue={initial?.lenderFirstName ?? ""} className={inputClass} />
                 </div>
                 <div>
                   <label className={labelClass} htmlFor="lenderLastName">
                     Last Name
                   </label>
-                  <input id="lenderLastName" name="lenderLastName" type="text" className={inputClass} />
+                  <input id="lenderLastName" name="lenderLastName" type="text" defaultValue={initial?.lenderLastName ?? ""} className={inputClass} />
                 </div>
               </div>
             )}
@@ -105,13 +127,13 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
                 <label className={labelClass} htmlFor="lenderEmail">
                   Email
                 </label>
-                <input id="lenderEmail" name="lenderEmail" type="email" className={inputClass} />
+                <input id="lenderEmail" name="lenderEmail" type="email" defaultValue={initial?.lenderEmail ?? ""} className={inputClass} />
               </div>
               <div>
                 <label className={labelClass} htmlFor="lenderPhone">
                   Phone
                 </label>
-                <input id="lenderPhone" name="lenderPhone" type="text" className={inputClass} />
+                <input id="lenderPhone" name="lenderPhone" type="text" defaultValue={initial?.lenderPhone ?? ""} className={inputClass} />
               </div>
             </div>
 
@@ -119,7 +141,13 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
               <label className={labelClass} htmlFor="lenderMailingAddressLine1">
                 Mailing Address
               </label>
-              <input id="lenderMailingAddressLine1" name="lenderMailingAddressLine1" type="text" className={inputClass} />
+              <input
+                id="lenderMailingAddressLine1"
+                name="lenderMailingAddressLine1"
+                type="text"
+                defaultValue={initial?.lenderMailingAddressLine1 ?? ""}
+                className={inputClass}
+              />
             </div>
 
             <div className="grid grid-cols-3 gap-3">
@@ -127,19 +155,31 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
                 <label className={labelClass} htmlFor="lenderMailingCity">
                   City
                 </label>
-                <input id="lenderMailingCity" name="lenderMailingCity" type="text" className={inputClass} />
+                <input
+                  id="lenderMailingCity"
+                  name="lenderMailingCity"
+                  type="text"
+                  defaultValue={initial?.lenderMailingCity ?? ""}
+                  className={inputClass}
+                />
               </div>
               <div>
                 <label className={labelClass} htmlFor="lenderMailingState">
                   State
                 </label>
-                <input id="lenderMailingState" name="lenderMailingState" type="text" className={inputClass} />
+                <input
+                  id="lenderMailingState"
+                  name="lenderMailingState"
+                  type="text"
+                  defaultValue={initial?.lenderMailingState ?? ""}
+                  className={inputClass}
+                />
               </div>
               <div>
                 <label className={labelClass} htmlFor="lenderMailingZip">
                   Zip
                 </label>
-                <input id="lenderMailingZip" name="lenderMailingZip" type="text" className={inputClass} />
+                <input id="lenderMailingZip" name="lenderMailingZip" type="text" defaultValue={initial?.lenderMailingZip ?? ""} className={inputClass} />
               </div>
             </div>
 
@@ -148,13 +188,18 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
                 <label className={labelClass} htmlFor="lenderPortalPin">
                   Portal PIN
                 </label>
-                <input id="lenderPortalPin" name="lenderPortalPin" type="text" className={inputClass} />
+                <input id="lenderPortalPin" name="lenderPortalPin" type="text" defaultValue={initial?.lenderPortalPin ?? ""} className={inputClass} />
               </div>
               <div>
                 <label className={labelClass} htmlFor="lenderPreferredPaymentMethod">
                   Preferred Payment Method
                 </label>
-                <select id="lenderPreferredPaymentMethod" name="lenderPreferredPaymentMethod" defaultValue="" className={inputClass}>
+                <select
+                  id="lenderPreferredPaymentMethod"
+                  name="lenderPreferredPaymentMethod"
+                  defaultValue={initial?.lenderPreferredPaymentMethod ?? ""}
+                  className={inputClass}
+                >
                   <option value="">Check (default)</option>
                   <option value="CHECK">Check</option>
                   <option value="ACH">ACH</option>
@@ -169,7 +214,7 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
                 <label className={labelClass} htmlFor="lenderTaxId">
                   EIN / TIN (or SSN)
                 </label>
-                <input id="lenderTaxId" name="lenderTaxId" type="text" className={inputClass} />
+                <input id="lenderTaxId" name="lenderTaxId" type="text" defaultValue={initial?.lenderTaxId ?? ""} className={inputClass} />
               </div>
 
               <div className="mb-3 grid grid-cols-2 gap-3">
@@ -177,13 +222,25 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
                   <label className={labelClass} htmlFor="lenderAchBankName">
                     Bank Name
                   </label>
-                  <input id="lenderAchBankName" name="lenderAchBankName" type="text" className={inputClass} />
+                  <input
+                    id="lenderAchBankName"
+                    name="lenderAchBankName"
+                    type="text"
+                    defaultValue={initial?.lenderAchBankName ?? ""}
+                    className={inputClass}
+                  />
                 </div>
                 <div>
                   <label className={labelClass} htmlFor="lenderAchRoutingNumber">
                     Routing Number
                   </label>
-                  <input id="lenderAchRoutingNumber" name="lenderAchRoutingNumber" type="text" className={inputClass} />
+                  <input
+                    id="lenderAchRoutingNumber"
+                    name="lenderAchRoutingNumber"
+                    type="text"
+                    defaultValue={initial?.lenderAchRoutingNumber ?? ""}
+                    className={inputClass}
+                  />
                 </div>
               </div>
 
@@ -191,7 +248,13 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
                 <label className={labelClass} htmlFor="lenderAchAccountNumber">
                   Account Number
                 </label>
-                <input id="lenderAchAccountNumber" name="lenderAchAccountNumber" type="text" className={inputClass} />
+                <input
+                  id="lenderAchAccountNumber"
+                  name="lenderAchAccountNumber"
+                  type="text"
+                  defaultValue={initial?.lenderAchAccountNumber ?? ""}
+                  className={inputClass}
+                />
               </div>
             </div>
           </div>
@@ -205,7 +268,16 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
             <label className={labelClass} htmlFor="lenderFundedAmount">
               Funded Amount ($)
             </label>
-            <input id="lenderFundedAmount" name="lenderFundedAmount" type="number" step="0.01" min="0.01" required className={inputClass} />
+            <input
+              id="lenderFundedAmount"
+              name="lenderFundedAmount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              required
+              defaultValue={initial?.lenderFundedAmount ?? ""}
+              className={inputClass}
+            />
           </div>
           <div>
             <label className={labelClass} htmlFor="lenderOwnershipPercent">
@@ -219,7 +291,7 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
               min="0.01"
               max="100"
               required
-              defaultValue="100"
+              defaultValue={initial?.lenderOwnershipPercent ?? "100"}
               className={inputClass}
             />
           </div>
@@ -235,6 +307,7 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
               min="0"
               max="100"
               required
+              defaultValue={initial?.lenderInterestRate ?? ""}
               className={inputClass}
             />
           </div>
@@ -242,7 +315,14 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
             <label className={labelClass} htmlFor="lenderFundingDate">
               Funding Date
             </label>
-            <input id="lenderFundingDate" name="lenderFundingDate" type="date" required defaultValue={today} className={inputClass} />
+            <input
+              id="lenderFundingDate"
+              name="lenderFundingDate"
+              type="date"
+              required
+              defaultValue={initial?.lenderFundingDate ?? today}
+              className={inputClass}
+            />
           </div>
         </div>
 
@@ -257,6 +337,7 @@ export default function StepLender({ existingLenders }: { existingLenders: { id:
             step="0.01"
             min="0"
             placeholder="0.00"
+            defaultValue={initial?.lenderServicingFee ?? ""}
             className={`${inputClass} max-w-[10rem]`}
           />
           <p className="mt-1 text-xs text-slate-400">
