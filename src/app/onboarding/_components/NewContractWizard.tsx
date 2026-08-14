@@ -174,6 +174,40 @@ export default function NewContractWizard({
   const step4Ref = useRef<HTMLFieldSetElement>(null);
   const refs = [step1Ref, step2Ref, step3Ref, step4Ref];
 
+  // A server-side validation error (as opposed to the client-side
+  // checkValidity() loop below, which already jumps to the right step on
+  // its own) otherwise leaves the user stranded wherever they happened to
+  // be — e.g. "Select a lender" showing up at the bottom of Step 4 with no
+  // Lender-step UI anywhere in sight. Jump back to whichever step the
+  // message actually concerns. Adjusting state during render (React's own
+  // recommended pattern for "reacting to a prop/state change") rather than
+  // in a useEffect, which would call setStep after an extra render pass.
+  const [handledError, setHandledError] = useState<string | undefined>(undefined);
+  if (state?.error && state.error !== handledError) {
+    setHandledError(state.error);
+    const msg = state.error.toLowerCase();
+    if (msg.includes("borrower")) setStep(1);
+    else if (msg.includes("lender")) setStep(2);
+    else if (msg.includes("street address") || msg.includes("city") || msg.includes("county") || msg.includes("zip")) setStep(3);
+    else if (
+      msg.includes("contract number") ||
+      msg.includes("purchase price") ||
+      msg.includes("down payment") ||
+      msg.includes("principal") ||
+      msg.includes("interest rate") ||
+      msg.includes("amortization") ||
+      msg.includes("payment amount") ||
+      msg.includes("origination date") ||
+      msg.includes("payment date") ||
+      msg.includes("balloon") ||
+      msg.includes("escrow") ||
+      msg.includes("tax") ||
+      msg.includes("insurance")
+    ) {
+      setStep(4);
+    }
+  }
+
   function goNext() {
     const currentRef = refs[step - 1];
     if (currentRef.current && !currentRef.current.checkValidity()) {
@@ -213,6 +247,10 @@ export default function NewContractWizard({
 
   return (
     <form action={formAction} onSubmit={handleSubmit} noValidate className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      {state?.error && (
+        <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
+      )}
+
       <ol className="mb-6 flex items-center gap-2 text-xs font-medium text-slate-500">
         {STEPS.map((label, i) => (
           <li key={label} className={`flex items-center gap-2 ${i + 1 === step ? "text-slate-900" : ""}`}>
@@ -242,7 +280,6 @@ export default function NewContractWizard({
         <StepContractAndEscrow suggestedContractNumber={suggestedContractNumber} initial={initial} highlightMissing={highlightMissing} />
       </fieldset>
 
-      {state?.error && <p className="mt-4 text-sm text-red-600">{state.error}</p>}
       {state?.success && <p className="mt-4 text-sm text-emerald-700">{state.success}</p>}
 
       <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
