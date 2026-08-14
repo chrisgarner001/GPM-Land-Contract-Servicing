@@ -556,6 +556,13 @@ export async function submitContractDraftAction(
   if (!draft) return { error: "Draft not found." };
   if (draft.status === "PUBLISHED") return { error: "This draft has already been used to create a contract." };
 
+  // Save first, always — if createLandContract's own validation rejects the
+  // submission below, the draft still reflects everything just typed rather
+  // than whatever was last explicitly saved (often nothing), so revisiting
+  // the draft after fixing one field never means starting over.
+  await saveContractDraft(draftId, collectAnswers(formData), updatedBy);
+  revalidatePath(`/onboarding/manual/${draftId}`);
+
   const result = await createLandContract(formData, { id: draftId, updatedBy });
   if (result.error) return { error: result.error };
 
