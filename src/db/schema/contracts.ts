@@ -103,6 +103,15 @@ export const contracts = pgTable("contracts", {
   lateFeeGraceDays: integer("late_fee_grace_days"),
 
   escrowRequired: boolean("escrow_required").notNull().default(false),
+  // Explicit staff-set override for the escrow portion billed on every
+  // future payment — null means "no override yet," in which case
+  // getCurrentEscrowPortionCents() falls back to its original behavior
+  // (infer from the last cleared payment's own escrow allocation), so
+  // existing contracts that have never touched this field are completely
+  // unaffected. Set automatically from the computed onboarding-time
+  // analysis when escrow is required, and editable afterward on the Escrow
+  // Analysis page.
+  monthlyEscrowPaymentCents: bigint("monthly_escrow_payment_cents", { mode: "number" }),
 
   status: contractStatusEnum("status").notNull().default("ACTIVE"),
   statusChangedAt: timestamp("status_changed_at", { withTimezone: true }),

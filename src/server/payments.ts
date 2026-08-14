@@ -62,6 +62,16 @@ export async function getUnpaidChargesCents(contractId: string): Promise<number>
 // with whatever the last actual analysis/adjustment set it to. Shared by the
 // contract page and the borrower portal's Make Payment breakdown.
 export async function getCurrentEscrowPortionCents(contractId: string): Promise<number> {
+  // An explicit staff-set monthlyEscrowPaymentCents always wins — see the
+  // schema comment on contracts.monthlyEscrowPaymentCents. Only when it's
+  // never been set do we fall back to the original heuristic (infer from
+  // the last cleared payment's own escrow allocation), so contracts that
+  // have never touched this field behave exactly as before.
+  const [contract] = await db.select({ monthlyEscrowPaymentCents: contracts.monthlyEscrowPaymentCents }).from(contracts).where(eq(contracts.id, contractId));
+  if (contract?.monthlyEscrowPaymentCents !== null && contract?.monthlyEscrowPaymentCents !== undefined) {
+    return contract.monthlyEscrowPaymentCents;
+  }
+
   const [latestEscrowPayment] = await db
     .select({ amountCents: paymentAllocations.amountCents })
     .from(paymentAllocations)

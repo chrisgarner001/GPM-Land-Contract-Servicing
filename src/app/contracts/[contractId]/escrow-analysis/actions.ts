@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { eq, desc } from "drizzle-orm";
 import { db } from "@/db/client";
-import { escrowAnalyses, escrowAnalysisTriggerEnum } from "@/db/schema/escrow";
+import { escrowAnalyses, escrowAnalysisTriggerEnum, trustLedgerEntries } from "@/db/schema/escrow";
+import { contracts } from "@/db/schema/contracts";
 import { runEscrowAnalysis } from "@/domain/escrow/runEscrowAnalysis";
 
 export interface RunAnalysisState {
@@ -62,23 +64,57 @@ export async function runAnalysisAction(
 
   const today = new Date().toISOString().slice(0, 10);
 
-  await db.insert(escrowAnalyses).values({
-    contractId,
-    analysisDate: today,
-    effectiveDate: today,
-    trigger: trigger as (typeof escrowAnalysisTriggerEnum.enumValues)[number],
-    projectionPeriodMonths: String(projectionPeriodMonths),
-    cushionMonths: cushionMonths.toFixed(1),
-    projectedAnnualTaxCents,
-    projectedAnnualInsuranceCents,
-    cushionTargetCents: result.cushionTargetCents,
-    currentEscrowBalanceCents,
-    currentMonthlyEscrowPaymentCents,
-    projectedEndingBalanceCents: result.projectedEndingBalanceCents,
-    shortageOrSurplusCents: result.shortageOrSurplusCents,
-    newMonthlyEscrowPaymentCents: result.newMonthlyEscrowPaymentCents,
+  await db.transaction(async (tx) => {
+    await tx.insert(escrowAnalyses).values({
+      contractId,
+      analysisDate: today,
+      effectiveDate: today,
+      trigger: trigger as (typeof escrowAnalysisTriggerEnum.enumValues)[number],
+      projectionPeriodMonths: String(projectionPeriodMonths),
+      cushionMonths: cushionMonths.toFixed(1),
+      projectedAnnualTaxCents,
+      projectedAnnualInsuranceCents,
+      cushionTargetCents: result.cushionTargetCents,
+      currentEscrowBalanceCents,
+      currentMonthlyEscrowPaymentCents,
+      projectedEndingBalanceCents: result.projectedEndingBalanceCents,
+      shortageOrSurplusCents: result.shortageOrSurplusCents,
+      newMonthlyEscrowPaymentCents: result.newMonthlyEscrowPaymentCents,
+    });
+
+    // Running an analysis is the deliberate act of arriving at a new
+    // billed payment — apply it, rather than letting it sit as a purely
+    // historical row nothing else ever reads (the original gap: this
+    // action used to have zero effect on what a borrower actually gets
+    // charged). Also corrects the real trust-ledger balance if the typed
+    // "Current Escrow Balance" doesn't match what's on file — e.g. after
+    // reconciling against a bank statement.
+    await tx.update(contracts).set({ monthlyEscrowPaymentCents: result.newMonthlyEscrowPaymentCents }).where(eq(contracts.id, contractId));
+
+    const [latestTrustEntry] = await tx
+      .select({ balanceCents: trustLedgerEntries.balanceCents })
+      .from(trustLedgerEntries)
+      .where(eq(trustLedgerEntries.contractId, contractId))
+      .orderBy(desc(trustLedgerEntries.transactionDate), desc(trustLedgerEntries.id))
+      .limit(1);
+    const currentBalanceCents = latestTrustEntry?.balanceCents ?? 0;
+
+    if (currentEscrowBalanceCents !== currentBalanceCents) {
+      const deltaCents = currentEscrowBalanceCents - currentBalanceCents;
+      await tx.insert(trustLedgerEntries).values({
+        contractId,
+        transactionDate: today,
+        description: "Escrow balance correction (Run Escrow Analysis)",
+        amountReceivedCents: deltaCents > 0 ? deltaCents : null,
+        amountPaidOutCents: deltaCents < 0 ? -deltaCents : null,
+        balanceCents: currentEscrowBalanceCents,
+        category: "IMPOUND",
+      });
+    }
   });
 
   revalidatePath(`/contracts/${contractId}/escrow-analysis`);
-  return { success: "Analysis run and saved." };
+  revalidatePath(`/contracts/${contractId}`);
+  revalidatePath("/escrow-maintenance");
+  return { success: "Analysis run and saved — the new monthly payment is now what's billed going forward." };
 }

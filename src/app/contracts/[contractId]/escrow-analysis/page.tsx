@@ -86,6 +86,11 @@ export default async function EscrowAnalysisPage({ params }: { params: Promise<{
     .where(eq(escrowAnalyses.contractId, contractId))
     .orderBy(desc(escrowAnalyses.analysisDate));
 
+  // An explicit override always wins (see contracts.monthlyEscrowPaymentCents
+  // schema comment) — only fall back to the last-cleared-payment heuristic
+  // when it's never been set, matching getCurrentEscrowPortionCents.
+  const currentMonthlyPaymentCents = contract.monthlyEscrowPaymentCents ?? latestEscrowPayment?.amountCents ?? null;
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -132,7 +137,7 @@ export default async function EscrowAnalysisPage({ params }: { params: Promise<{
           <div className="flex items-baseline justify-between py-1 text-sm">
             <span className="text-slate-500">Monthly Payment</span>
             <span className="font-medium tabular-nums text-slate-900">
-              {latestEscrowPayment ? formatCents(latestEscrowPayment.amountCents) : "—"}
+              {currentMonthlyPaymentCents !== null ? formatCents(currentMonthlyPaymentCents) : "—"}
             </span>
           </div>
           <div className="flex items-baseline justify-between py-1 text-sm">
@@ -142,8 +147,8 @@ export default async function EscrowAnalysisPage({ params }: { params: Promise<{
             </span>
           </div>
           <p className="mt-2 text-xs text-slate-400">
-            Per the land contract, this stays fixed until an analysis is run — twice a year after the semi-annual tax
-            payments, or sooner if an unexpected bill arrives.
+            This is what&apos;s actually billed and what&apos;s on file — it only changes when Run Escrow Analysis below is
+            submitted, twice a year after the semi-annual tax payments, or sooner if an unexpected bill arrives.
           </p>
         </div>
       </div>
@@ -153,7 +158,7 @@ export default async function EscrowAnalysisPage({ params }: { params: Promise<{
         defaultProjectedAnnualTaxDollars={centsToDollarsString(trailingTaxCents)}
         defaultProjectedAnnualInsuranceDollars={centsToDollarsString(trailingInsuranceCents)}
         defaultCurrentEscrowBalanceDollars={centsToDollarsString(latestTrustEntry?.balanceCents ?? 0)}
-        defaultCurrentMonthlyEscrowPaymentDollars={centsToDollarsString(latestEscrowPayment?.amountCents ?? 0)}
+        defaultCurrentMonthlyEscrowPaymentDollars={centsToDollarsString(currentMonthlyPaymentCents ?? 0)}
       />
 
       <div>

@@ -9,6 +9,7 @@ import { contractNotes } from "@/db/schema/notes";
 import { calculateAmountDue, daysPastDue } from "@/domain/ledger/calculateAmountDue";
 import { regressNextPaymentDate } from "@/domain/ledger/advanceNextPaymentDate";
 import { getUnpaidChargesCents, getCurrentEscrowPortionCents, getEscrowAndReserveBalances } from "@/server/payments";
+import { contractHasPayments } from "@/server/contractDeletion";
 import { formatCents, formatDate, formatPercent } from "@/lib/format";
 import RecordPaymentModal from "./_components/RecordPaymentModal";
 import NotesSection from "./_components/NotesSection";
@@ -16,6 +17,7 @@ import StatusCard from "./_components/StatusCard";
 import LoanTypeField from "./_components/LoanTypeField";
 import AttachmentsSection from "./_components/AttachmentsSection";
 import ReversePaymentButton from "./_components/ReversePaymentButton";
+import DangerZoneCard from "./_components/DangerZoneCard";
 
 
 async function getBuyerContact(contractId: string) {
@@ -136,6 +138,8 @@ export default async function ContractOverviewPage({ params }: { params: Promise
     .from(contractNotes)
     .where(eq(contractNotes.contractId, contractId))
     .orderBy(desc(contractNotes.createdAt));
+
+  const hasPayments = await contractHasPayments(contractId);
 
   return (
     <div className="space-y-6">
@@ -326,6 +330,8 @@ export default async function ContractOverviewPage({ params }: { params: Promise
       <NotesSection contractId={contractId} notes={notes} />
 
       <AttachmentsSection contractId={contractId} googleDriveFolderUrl={contract.googleDriveFolderUrl} />
+
+      <DangerZoneCard contractId={contractId} contractNumber={contract.contractNumber} hasPayments={hasPayments} />
     </div>
   );
 }

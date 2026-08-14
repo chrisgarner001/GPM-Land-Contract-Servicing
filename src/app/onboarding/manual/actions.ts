@@ -15,7 +15,7 @@ import {
   lateFeeTypeEnum,
 } from "@/db/schema/contracts";
 import { contractOnboardingDrafts } from "@/db/schema/contractOnboardingDrafts";
-import { escrowAnalyses } from "@/db/schema/escrow";
+import { escrowAnalyses, trustLedgerEntries } from "@/db/schema/escrow";
 import { runEscrowAnalysis } from "@/domain/escrow/runEscrowAnalysis";
 import { encryptPII } from "@/lib/encryption";
 import { createClient } from "@/lib/supabase/server";
@@ -445,6 +445,26 @@ async function createLandContract(
         shortageOrSurplusCents: result.shortageOrSurplusCents,
         newMonthlyEscrowPaymentCents: result.newMonthlyEscrowPaymentCents,
       });
+
+      // Every other page that shows "Escrow Balance" reads the running
+      // balance off the most recent trust_ledger_entries row (see
+      // getEscrowAndReserveBalances) — without this, a brand-new contract's
+      // starting balance was only ever visible buried in the escrow
+      // analysis history table above, never on the contract page itself.
+      await tx.insert(trustLedgerEntries).values({
+        contractId: contract.id,
+        transactionDate: originationDate,
+        description: "Opening escrow balance (onboarding)",
+        amountReceivedCents: startingEscrowBalanceCents ?? 0,
+        balanceCents: startingEscrowBalanceCents ?? 0,
+        category: "IMPOUND",
+      });
+
+      // Becomes the real escrow amount billed on the contract's payments
+      // going forward (see getCurrentEscrowPortionCents) — otherwise this
+      // computed figure was stranded on the analysis row and had zero
+      // effect on what the borrower actually gets charged.
+      await tx.update(contracts).set({ monthlyEscrowPaymentCents: result.newMonthlyEscrowPaymentCents }).where(eq(contracts.id, contract.id));
     }
 
     if (linkDraft) {

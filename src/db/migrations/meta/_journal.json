@@ -379,6 +379,13 @@
       "when": 1786716290453,
       "tag": "0053_furry_george_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1786721777531,
+      "tag": "0054_wide_hawkeye",
+      "breakpoints": true
     }
   ]
 }

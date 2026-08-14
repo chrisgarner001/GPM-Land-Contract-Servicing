@@ -1,0 +1,1 @@
+ALTER TABLE "contracts" ADD COLUMN "monthly_escrow_payment_cents" bigint;
