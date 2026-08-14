@@ -85,6 +85,11 @@ export const parties = pgTable("parties", {
   // staff Log In As until reactivated (see lenderLoginAction/
   // logInAsLenderAction).
   portalDeactivated: boolean("portal_deactivated").notNull().default(false),
+  // Lenders only — the business relationship itself, distinct from
+  // portalDeactivated (which only blocks login). A deactivated lender is
+  // excluded from the Lenders list, "Existing Lender" pickers everywhere
+  // (Add Lender Funding, onboarding), and can't be assigned new funding.
+  deactivated: boolean("deactivated").notNull().default(false),
   // Lenders only — Check vs. ACH, defaulted to Check when unset. Overridable
   // per Lender Payment Run; this is just the pre-selected default.
   preferredPaymentMethod: preferredPaymentMethodEnum("preferred_payment_method"),

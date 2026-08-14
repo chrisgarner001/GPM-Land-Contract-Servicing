@@ -72,8 +72,22 @@ export async function sendStaffInviteAction(email: string): Promise<SendStaffInv
   const { error } = await admin.auth.admin.inviteUserByEmail(email.trim(), {
     redirectTo: `${siteUrl}/auth/confirm?next=/set-password`,
   });
-  if (error) return { error: error.message };
-  return { success: "Invite sent." };
+  if (!error) return { success: "Invite sent." };
+
+  // Already has a real login (e.g. a password was set directly, or they
+  // were invited before) — inviteUserByEmail only works for brand-new
+  // users. Send a password-reset link instead, so the button still does
+  // something useful rather than just reporting a confusing failure.
+  if (error.message.toLowerCase().includes("already been registered") || error.code === "email_exists") {
+    const supabase = await createClient();
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${siteUrl}/auth/confirm?next=/set-password`,
+    });
+    if (resetError) return { error: resetError.message };
+    return { success: "Already had a login — sent a password reset link instead." };
+  }
+
+  return { error: error.message };
 }
 
 export interface SetStaffPasswordState {

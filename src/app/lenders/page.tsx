@@ -16,6 +16,7 @@ async function getLenders() {
       email: parties.email,
       portalPin: parties.portalPin,
       portalDeactivated: parties.portalDeactivated,
+      deactivated: parties.deactivated,
       contractsFunded: countDistinct(contractParties.contractId),
     })
     .from(parties)
@@ -58,10 +59,11 @@ async function getLenders() {
   return rows.map((r) => ({ ...r, totalActivityCents: totalsById.get(r.id) ?? 0 }));
 }
 
-function buildHref(params: { q: string; dir: "asc" | "desc" }): string {
+function buildHref(params: { q: string; dir: "asc" | "desc"; showAll: boolean }): string {
   const next = new URLSearchParams();
   if (params.q) next.set("q", params.q);
   if (params.dir !== "asc") next.set("dir", params.dir);
+  if (params.showAll) next.set("status", "all");
   const qs = next.toString();
   return qs ? `/lenders?${qs}` : "/lenders";
 }
@@ -69,17 +71,19 @@ function buildHref(params: { q: string; dir: "asc" | "desc" }): string {
 export default async function LendersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; dir?: string }>;
+  searchParams: Promise<{ q?: string; dir?: string; status?: string }>;
 }) {
   const params = await searchParams;
   const q = params.q?.trim() ?? "";
   const qLower = q.toLowerCase();
   const dir: "asc" | "desc" = params.dir === "desc" ? "desc" : "asc";
+  const showAll = params.status === "all";
 
   const allRows = await getLenders();
-  let rows = qLower
-    ? allRows.filter((row) => [row.displayName, row.email].filter(Boolean).join(" ").toLowerCase().includes(qLower))
-    : allRows;
+  let rows = showAll ? allRows : allRows.filter((row) => !row.deactivated);
+  if (qLower) {
+    rows = rows.filter((row) => [row.displayName, row.email].filter(Boolean).join(" ").toLowerCase().includes(qLower));
+  }
 
   rows = [...rows].sort((a, b) => {
     const cmp = a.displayName.localeCompare(b.displayName);
@@ -96,10 +100,27 @@ export default async function LendersPage({
       </h1>
       <p className="mb-4 text-sm text-slate-500">
         {rows.length} of {allRows.length} lenders
+        {!showAll && (
+          <>
+            {" — "}
+            <Link href={buildHref({ q, dir, showAll: true })} className="text-blue-700 hover:underline">
+              Show Deactivated
+            </Link>
+          </>
+        )}
+        {showAll && (
+          <>
+            {" — "}
+            <Link href={buildHref({ q, dir, showAll: false })} className="text-blue-700 hover:underline">
+              Hide Deactivated
+            </Link>
+          </>
+        )}
       </p>
 
       <form method="get" className="mb-4 flex flex-wrap items-center gap-2">
         {dir !== "asc" && <input type="hidden" name="dir" value={dir} />}
+        {showAll && <input type="hidden" name="status" value="all" />}
         <input
           type="text"
           name="q"
@@ -114,7 +135,7 @@ export default async function LendersPage({
           Search
         </button>
         {q && (
-          <Link href={buildHref({ q: "", dir })} className="text-sm text-slate-500 hover:underline">
+          <Link href={buildHref({ q: "", dir, showAll })} className="text-sm text-slate-500 hover:underline">
             Clear
           </Link>
         )}
@@ -125,12 +146,13 @@ export default async function LendersPage({
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <th className="px-4 py-3">
-                <Link href={buildHref({ q, dir: nextDir })} className="inline-flex items-center gap-1 hover:text-slate-900">
+                <Link href={buildHref({ q, dir: nextDir, showAll })} className="inline-flex items-center gap-1 hover:text-slate-900">
                   Lender
                   <span>{dir === "asc" ? "▲" : "▼"}</span>
                 </Link>
               </th>
               <th className="w-64 px-4 py-3">Email</th>
+              <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Online Portal</th>
               <th className="px-4 py-3 text-right">Contracts Funded</th>
               <th className="px-4 py-3 text-right">Total Activity</th>
@@ -154,6 +176,17 @@ export default async function LendersPage({
                         </div>
                       ))
                     : "—"}
+                </td>
+                <td className="px-4 py-3">
+                  {row.deactivated ? (
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 ring-1 ring-inset ring-slate-500/20">
+                      Deactivated
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                      Active
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   {row.portalDeactivated ? (

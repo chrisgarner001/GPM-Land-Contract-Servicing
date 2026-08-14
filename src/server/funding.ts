@@ -1,4 +1,4 @@
-import { eq, and, gt, isNull } from "drizzle-orm";
+import { eq, and, gt, isNull, notExists, inArray } from "drizzle-orm";
 import Decimal from "decimal.js";
 import { db } from "@/db/client";
 import { contractParties } from "@/db/schema/contracts";
@@ -128,11 +128,26 @@ export interface LenderOption {
   displayName: string;
 }
 
+// Any party that isn't currently a borrower/seller on some contract counts
+// as a selectable lender — previously this required an EXISTING active
+// INVESTOR_PAYEE row, which meant a lender just added via "Add New Lender"
+// (bare party record, no funding yet) could never be picked here at all —
+// a chicken-and-egg gap, since assigning their first funding is exactly
+// what this picker is for. Deactivated lenders are excluded.
 export async function getExistingLenderOptions(): Promise<LenderOption[]> {
   return db
-    .selectDistinct({ id: parties.id, displayName: parties.displayName })
+    .select({ id: parties.id, displayName: parties.displayName })
     .from(parties)
-    .innerJoin(contractParties, eq(contractParties.partyId, parties.id))
-    .where(eq(contractParties.role, "INVESTOR_PAYEE"))
+    .where(
+      and(
+        eq(parties.deactivated, false),
+        notExists(
+          db
+            .select({ id: contractParties.id })
+            .from(contractParties)
+            .where(and(eq(contractParties.partyId, parties.id), inArray(contractParties.role, ["BUYER", "CO_BUYER", "SELLER", "CO_SELLER"])))
+        )
+      )
+    )
     .orderBy(parties.displayName);
 }

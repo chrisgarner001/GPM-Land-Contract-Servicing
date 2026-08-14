@@ -7,6 +7,7 @@ import { bankAccounts, glCodes } from "@/db/schema/setup";
 import { formatCents, formatDate } from "@/lib/format";
 import DefaultBankAccountSection from "./_components/DefaultBankAccountSection";
 import DefaultGlCodeSection from "./_components/DefaultGlCodeSection";
+import StatusSection from "./_components/StatusSection";
 
 export default async function VendorDetailPage({ params }: { params: Promise<{ vendorId: string }> }) {
   const { vendorId } = await params;
@@ -79,6 +80,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<{ v
           bankAccountOptions={bankAccountOptions}
         />
         <DefaultGlCodeSection vendorId={vendorId} defaultGlCode={vendor.defaultGlCode} glCodeOptions={glCodeOptions} />
+        <StatusSection vendorId={vendorId} deactivated={vendor.deactivated} />
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">

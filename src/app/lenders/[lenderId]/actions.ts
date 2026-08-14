@@ -257,6 +257,57 @@ export async function reactivateLenderPortalAction(
   return { success: "Portal access reactivated." };
 }
 
+export interface SetLenderDeactivatedState {
+  error?: string;
+  success?: string;
+}
+
+// The lender relationship itself — distinct from portal access above.
+// Deactivating also blocks portal login (a lender you no longer work with
+// shouldn't retain access), but reactivating does NOT restore it — that's
+// a separate, deliberate re-enablement staff can do afterward if warranted.
+export async function deactivateLenderAction(
+  lenderId: string,
+  _prevState: SetLenderDeactivatedState | undefined,
+  _formData: FormData
+): Promise<SetLenderDeactivatedState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
+  await db.update(parties).set({ deactivated: true, portalDeactivated: true, updatedAt: new Date() }).where(eq(parties.id, lenderId));
+  revalidatePath(`/lenders/${lenderId}`);
+  revalidatePath("/lenders");
+  return { success: "Lender deactivated." };
+}
+
+export async function reactivateLenderAction(
+  lenderId: string,
+  _prevState: SetLenderDeactivatedState | undefined,
+  _formData: FormData
+): Promise<SetLenderDeactivatedState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
+  await db.update(parties).set({ deactivated: false, updatedAt: new Date() }).where(eq(parties.id, lenderId));
+  revalidatePath(`/lenders/${lenderId}`);
+  revalidatePath("/lenders");
+  return { success: "Lender reactivated." };
+}
+
 export interface AddPartyNoteState {
   error?: string;
 }

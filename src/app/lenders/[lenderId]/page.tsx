@@ -13,6 +13,7 @@ import DocumentsSection from "./_components/DocumentsSection";
 import PartyNotesSection from "./_components/PartyNotesSection";
 import DefaultBankAccountSection from "./_components/DefaultBankAccountSection";
 import OnlinePortalSection from "./_components/OnlinePortalSection";
+import StatusSection from "./_components/StatusSection";
 import ComposeEmailForm from "@/app/_components/ComposeEmailForm";
 
 export default async function LenderDetailPage({ params }: { params: Promise<{ lenderId: string }> }) {
@@ -90,6 +91,10 @@ export default async function LenderDetailPage({ params }: { params: Promise<{ l
           {lender.portalPin ? ` · Portal PIN ${lender.portalPin}` : ""}
         </p>
         <p className="mt-2 text-sm text-slate-700">{fundedContracts.length} contracts funded</p>
+      </div>
+
+      <div className="mb-6">
+        <StatusSection lenderId={lenderId} deactivated={lender.deactivated} />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">

@@ -68,3 +68,50 @@ export async function updateVendorDefaultGlCode(
   revalidatePath(`/vendors/${vendorId}`);
   return { success: "Default GL code updated." };
 }
+
+export interface SetVendorDeactivatedState {
+  error?: string;
+  success?: string;
+}
+
+export async function deactivateVendorAction(
+  vendorId: string,
+  _prevState: SetVendorDeactivatedState | undefined,
+  _formData: FormData
+): Promise<SetVendorDeactivatedState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
+  await db.update(vendors).set({ deactivated: true }).where(eq(vendors.id, vendorId));
+  revalidatePath(`/vendors/${vendorId}`);
+  revalidatePath("/vendors");
+  return { success: "Vendor deactivated." };
+}
+
+export async function reactivateVendorAction(
+  vendorId: string,
+  _prevState: SetVendorDeactivatedState | undefined,
+  _formData: FormData
+): Promise<SetVendorDeactivatedState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
+  await db.update(vendors).set({ deactivated: false }).where(eq(vendors.id, vendorId));
+  revalidatePath(`/vendors/${vendorId}`);
+  revalidatePath("/vendors");
+  return { success: "Vendor reactivated." };
+}

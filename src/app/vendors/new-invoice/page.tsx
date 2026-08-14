@@ -12,6 +12,7 @@ async function getVendorOptions() {
   return db
     .select({ id: vendors.id, displayName: vendors.displayName, defaultGlCode: vendors.defaultGlCode })
     .from(vendors)
+    .where(eq(vendors.deactivated, false))
     .orderBy(vendors.displayName);
 }
 

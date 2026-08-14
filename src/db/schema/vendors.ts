@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, bigint, date, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, bigint, date, timestamp, boolean } from "drizzle-orm/pg-core";
 import { contracts } from "./contracts";
 import { bankAccounts } from "./setup";
 import { paymentMethodEnum } from "./payments";
@@ -28,6 +28,10 @@ export const vendors = pgTable(
     // Pre-selected (but still editable) on New Invoice once this vendor is
     // chosen, since most vendors always post to the same GL code.
     defaultGlCode: text("default_gl_code"),
+    // Excluded from the New Invoice vendor picker and the default Vendors
+    // list view once deactivated — for a vendor no longer in use, without
+    // losing its historical disbursement records.
+    deactivated: boolean("deactivated").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   }
 );
