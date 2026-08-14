@@ -1,0 +1,1 @@
+ALTER TABLE "lender_ledger_entries" ADD COLUMN "late_fee_cents" bigint;

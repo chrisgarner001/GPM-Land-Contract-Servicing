@@ -1,0 +1,32 @@
+CREATE TABLE "property_assessor_snapshots" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"property_id" uuid NOT NULL,
+	"assessor_property_id" text,
+	"apn" text,
+	"county" text,
+	"owner_full_name" text,
+	"assessed_value_cents" bigint,
+	"total_market_value_cents" bigint,
+	"estimated_market_value_cents" bigint,
+	"annual_tax_amount_cents" bigint,
+	"tax_year" text,
+	"is_tax_exemption" boolean,
+	"delinquent_year" text,
+	"last_sale_date" date,
+	"last_sale_amount_cents" bigint,
+	"is_listed" boolean,
+	"is_listed_date" date,
+	"is_pre_foreclosure" boolean,
+	"year_built" text,
+	"beds" integer,
+	"baths" numeric(4, 1),
+	"sqft" integer,
+	"lot_size_sqft" integer,
+	"legal_description" text,
+	"combined_estimated_loan_balance_cents" bigint,
+	"estimated_equity_cents" bigint,
+	"raw_response" jsonb NOT NULL,
+	"fetched_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "property_assessor_snapshots" ADD CONSTRAINT "property_assessor_snapshots_property_id_properties_id_fk" FOREIGN KEY ("property_id") REFERENCES "public"."properties"("id") ON DELETE no action ON UPDATE no action;

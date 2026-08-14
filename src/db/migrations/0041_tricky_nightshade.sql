@@ -1,0 +1,1 @@
+ALTER TABLE "properties" ADD COLUMN "estimated_value_cents" bigint;

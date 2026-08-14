@@ -1,0 +1,1 @@
+ALTER TABLE "contracts" ADD COLUMN "next_payment_date" date;

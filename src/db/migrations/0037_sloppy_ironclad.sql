@@ -1,0 +1,1 @@
+ALTER TYPE "public"."posted_lender_document_type" ADD VALUE 'ACH_PAYMENTS';

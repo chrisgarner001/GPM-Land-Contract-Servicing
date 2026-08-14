@@ -1,0 +1,1 @@
+ALTER TABLE "vendor_disbursements" ADD COLUMN "gl_code" text;

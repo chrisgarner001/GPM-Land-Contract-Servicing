@@ -1,0 +1,1 @@
+ALTER TABLE "party_email_drafts" ADD COLUMN "cc_address" text;

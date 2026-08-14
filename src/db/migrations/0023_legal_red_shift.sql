@@ -1,0 +1,2 @@
+CREATE TYPE "public"."gl_code_type" AS ENUM('INCOME', 'EXPENSE', 'BANK', 'CURRENT_ASSET', 'CURRENT_LIABILITY', 'EQUITY');--> statement-breakpoint
+ALTER TABLE "gl_codes" ADD COLUMN "type" "gl_code_type";

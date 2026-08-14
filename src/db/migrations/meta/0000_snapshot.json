@@ -1,0 +1,745 @@
+{
+  "id": "abf97798-9521-46bc-ae35-088241cd3bbe",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.parties": {
+      "name": "parties",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "party_type": {
+          "name": "party_type",
+          "type": "party_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "first_name": {
+          "name": "first_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_name": {
+          "name": "last_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "company_name": {
+          "name": "company_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mailing_address_line1": {
+          "name": "mailing_address_line1",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mailing_address_line2": {
+          "name": "mailing_address_line2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mailing_city": {
+          "name": "mailing_city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mailing_state": {
+          "name": "mailing_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mailing_zip": {
+          "name": "mailing_zip",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tax_id_last4": {
+          "name": "tax_id_last4",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.properties": {
+      "name": "properties",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "street_address": {
+          "name": "street_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "zip": {
+          "name": "zip",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "county": {
+          "name": "county",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parcel_number": {
+          "name": "parcel_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "legal_description": {
+          "name": "legal_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.contract_parties": {
+      "name": "contract_parties",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contract_id": {
+          "name": "contract_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "party_id": {
+          "name": "party_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "contract_party_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ownership_percent": {
+          "name": "ownership_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "contract_parties_contract_id_contracts_id_fk": {
+          "name": "contract_parties_contract_id_contracts_id_fk",
+          "tableFrom": "contract_parties",
+          "tableTo": "contracts",
+          "columnsFrom": [
+            "contract_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "contract_parties_party_id_parties_id_fk": {
+          "name": "contract_parties_party_id_parties_id_fk",
+          "tableFrom": "contract_parties",
+          "tableTo": "parties",
+          "columnsFrom": [
+            "party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "contract_parties_contract_id_party_id_role_unique": {
+          "name": "contract_parties_contract_id_party_id_role_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "contract_id",
+            "party_id",
+            "role"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.contracts": {
+      "name": "contracts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contract_number": {
+          "name": "contract_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purchase_price_cents": {
+          "name": "purchase_price_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "down_payment_cents": {
+          "name": "down_payment_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_principal_cents": {
+          "name": "original_principal_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_principal_balance_cents": {
+          "name": "current_principal_balance_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "interest_rate_annual": {
+          "name": "interest_rate_annual",
+          "type": "numeric(7, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "interest_method": {
+          "name": "interest_method",
+          "type": "interest_method",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'SIMPLE_30_360'"
+        },
+        "amortization_term_months": {
+          "name": "amortization_term_months",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_amount_cents": {
+          "name": "payment_amount_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_frequency": {
+          "name": "payment_frequency",
+          "type": "payment_frequency",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'MONTHLY'"
+        },
+        "origination_date": {
+          "name": "origination_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "first_payment_date": {
+          "name": "first_payment_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "maturity_date": {
+          "name": "maturity_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "has_balloon": {
+          "name": "has_balloon",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "balloon_amount_cents": {
+          "name": "balloon_amount_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "balloon_due_date": {
+          "name": "balloon_due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "late_fee_amount_cents": {
+          "name": "late_fee_amount_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "late_fee_grace_days": {
+          "name": "late_fee_grace_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "escrow_required": {
+          "name": "escrow_required",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "status": {
+          "name": "status",
+          "type": "contract_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
+        },
+        "status_changed_at": {
+          "name": "status_changed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "contracts_property_id_properties_id_fk": {
+          "name": "contracts_property_id_properties_id_fk",
+          "tableFrom": "contracts",
+          "tableTo": "properties",
+          "columnsFrom": [
+            "property_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "contracts_contract_number_unique": {
+          "name": "contracts_contract_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "contract_number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.amortization_schedule_versions": {
+      "name": "amortization_schedule_versions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contract_id": {
+          "name": "contract_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version_number": {
+          "name": "version_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_date": {
+          "name": "effective_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "principal_balance_at_start_cents": {
+          "name": "principal_balance_at_start_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "interest_rate_annual": {
+          "name": "interest_rate_annual",
+          "type": "numeric(7, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amortization_term_months": {
+          "name": "amortization_term_months",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number_of_payments": {
+          "name": "number_of_payments",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_amount_cents": {
+          "name": "payment_amount_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "generated_at": {
+          "name": "generated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "superseded_at": {
+          "name": "superseded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "amortization_schedule_versions_contract_id_contracts_id_fk": {
+          "name": "amortization_schedule_versions_contract_id_contracts_id_fk",
+          "tableFrom": "amortization_schedule_versions",
+          "tableTo": "contracts",
+          "columnsFrom": [
+            "contract_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.scheduled_payments": {
+      "name": "scheduled_payments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "schedule_version_id": {
+          "name": "schedule_version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_number": {
+          "name": "period_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "beginning_balance_cents": {
+          "name": "beginning_balance_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scheduled_interest_cents": {
+          "name": "scheduled_interest_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scheduled_principal_cents": {
+          "name": "scheduled_principal_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scheduled_escrow_cents": {
+          "name": "scheduled_escrow_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scheduled_total_cents": {
+          "name": "scheduled_total_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ending_balance_cents": {
+          "name": "ending_balance_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "scheduled_payments_schedule_version_id_amortization_schedule_versions_id_fk": {
+          "name": "scheduled_payments_schedule_version_id_amortization_schedule_versions_id_fk",
+          "tableFrom": "scheduled_payments",
+          "tableTo": "amortization_schedule_versions",
+          "columnsFrom": [
+            "schedule_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "scheduled_payments_schedule_version_id_period_number_unique": {
+          "name": "scheduled_payments_schedule_version_id_period_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "schedule_version_id",
+            "period_number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.party_type": {
+      "name": "party_type",
+      "schema": "public",
+      "values": [
+        "INDIVIDUAL",
+        "BUSINESS"
+      ]
+    },
+    "public.contract_party_role": {
+      "name": "contract_party_role",
+      "schema": "public",
+      "values": [
+        "BUYER",
+        "CO_BUYER",
+        "SELLER",
+        "CO_SELLER",
+        "INVESTOR_PAYEE"
+      ]
+    },
+    "public.contract_status": {
+      "name": "contract_status",
+      "schema": "public",
+      "values": [
+        "ACTIVE",
+        "PAID_OFF",
+        "DEFAULTED",
+        "CANCELLED",
+        "IN_FORECLOSURE"
+      ]
+    },
+    "public.interest_method": {
+      "name": "interest_method",
+      "schema": "public",
+      "values": [
+        "SIMPLE_30_360",
+        "SIMPLE_ACTUAL_365"
+      ]
+    },
+    "public.payment_frequency": {
+      "name": "payment_frequency",
+      "schema": "public",
+      "values": [
+        "MONTHLY",
+        "SEMI_MONTHLY",
+        "BIWEEKLY"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

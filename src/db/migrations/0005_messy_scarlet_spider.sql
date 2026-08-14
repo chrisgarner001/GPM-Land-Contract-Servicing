@@ -1,0 +1,1 @@
+ALTER TABLE "contracts" ADD COLUMN "paid_off_date" date;

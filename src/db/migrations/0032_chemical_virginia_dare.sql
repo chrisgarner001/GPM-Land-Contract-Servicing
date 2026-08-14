@@ -1,0 +1,1 @@
+ALTER TYPE "public"."posted_document_type" ADD VALUE 'PAYOFF_LETTER';

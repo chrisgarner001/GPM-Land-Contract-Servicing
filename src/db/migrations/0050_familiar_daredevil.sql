@@ -1,0 +1,1 @@
+ALTER TABLE "property_assessor_snapshots" ADD COLUMN "exemption_type" text;

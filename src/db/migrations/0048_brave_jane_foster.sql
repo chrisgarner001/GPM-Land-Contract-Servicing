@@ -1,0 +1,2 @@
+CREATE TYPE "public"."loan_type" AS ENUM('LAND_CONTRACT', 'FIRST_LIEN', 'SECOND_LIEN', 'UNSECURED');--> statement-breakpoint
+ALTER TABLE "contracts" ADD COLUMN "loan_type" "loan_type" DEFAULT 'LAND_CONTRACT' NOT NULL;

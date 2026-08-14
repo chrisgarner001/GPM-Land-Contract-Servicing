@@ -1,0 +1,1 @@
+ALTER TABLE "contracts" ADD COLUMN "in_bankruptcy" boolean DEFAULT false NOT NULL;

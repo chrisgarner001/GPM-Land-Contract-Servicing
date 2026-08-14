@@ -1,0 +1,2 @@
+ALTER TABLE "checks" ADD COLUMN "bank_account_id" uuid;--> statement-breakpoint
+ALTER TABLE "checks" ADD CONSTRAINT "checks_bank_account_id_bank_accounts_id_fk" FOREIGN KEY ("bank_account_id") REFERENCES "public"."bank_accounts"("id") ON DELETE no action ON UPDATE no action;

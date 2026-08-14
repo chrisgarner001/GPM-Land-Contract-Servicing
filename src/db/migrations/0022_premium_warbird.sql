@@ -1,0 +1,4 @@
+ALTER TABLE "parties" ADD COLUMN "default_bank_account_id" uuid;--> statement-breakpoint
+ALTER TABLE "vendors" ADD COLUMN "default_bank_account_id" uuid;--> statement-breakpoint
+ALTER TABLE "parties" ADD CONSTRAINT "parties_default_bank_account_id_bank_accounts_id_fk" FOREIGN KEY ("default_bank_account_id") REFERENCES "public"."bank_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "vendors" ADD CONSTRAINT "vendors_default_bank_account_id_bank_accounts_id_fk" FOREIGN KEY ("default_bank_account_id") REFERENCES "public"."bank_accounts"("id") ON DELETE no action ON UPDATE no action;
