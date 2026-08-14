@@ -20,7 +20,13 @@ import { runEscrowAnalysis } from "@/domain/escrow/runEscrowAnalysis";
 import { encryptPII } from "@/lib/encryption";
 import { createClient } from "@/lib/supabase/server";
 import { requireEditAccess } from "@/lib/staffRole";
-import { createContractDraft, getContractDraft, saveContractDraft, type ContractDraftAnswers } from "@/server/contractDrafts";
+import {
+  createContractDraft,
+  getContractDraft,
+  saveContractDraft,
+  deleteContractDraft,
+  type ContractDraftAnswers,
+} from "@/server/contractDrafts";
 
 // Shared by createLandContractAction (Import flow, no draft) and
 // submitContractDraftAction (Manual entry flow, draft-backed) so
@@ -539,4 +545,35 @@ export async function createDraftAction(): Promise<void> {
   await requireEditAccess(user?.email);
   const id = await createContractDraft(user?.email ?? null);
   redirect(`/onboarding/manual/${id}`);
+}
+
+export interface DeleteContractDraftState {
+  error?: string;
+}
+
+// Only for a still-DRAFT row — a PUBLISHED one is a real contract now and
+// must be removed (if at all) via that contract's own Danger Zone.
+export async function deleteContractDraftAction(
+  draftId: string,
+  _prevState: DeleteContractDraftState | undefined
+): Promise<DeleteContractDraftState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
+  const draft = await getContractDraft(draftId);
+  if (!draft) return { error: "Draft not found." };
+  if (draft.status === "PUBLISHED") {
+    return { error: "This draft has already been used to create a contract — delete it from the contract's own page instead." };
+  }
+
+  await deleteContractDraft(draftId);
+  revalidatePath("/onboarding/manual");
+  return {};
 }

@@ -62,3 +62,10 @@ export async function saveContractDraft(id: string, answers: ContractDraftAnswer
     .set({ answers, ...summaryFields(answers), updatedBy, updatedAt: new Date() })
     .where(eq(contractOnboardingDrafts.id, id));
 }
+
+// Only ever called for a DRAFT row — a PUBLISHED one already became a real
+// contract and must be removed (if at all) via that contract's own Cancel/
+// Delete in its Danger Zone, not from here.
+export async function deleteContractDraft(id: string): Promise<void> {
+  await db.delete(contractOnboardingDrafts).where(eq(contractOnboardingDrafts.id, id));
+}

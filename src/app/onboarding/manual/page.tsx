@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listContractDrafts, type ContractDraftListRow } from "@/server/contractDrafts";
 import { formatDateTime } from "@/lib/format";
 import { createDraftAction } from "./actions";
+import DeleteDraftButton from "./_components/DeleteDraftButton";
 
 function borrowerLabel(d: ContractDraftListRow): string {
   return d.borrowerName || "(unnamed borrower)";
@@ -37,12 +38,13 @@ export default async function OnboardingManualPage() {
               <th className="px-4 py-3">Property</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Last Updated</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {drafts.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
                   No contracts started yet — click New Contract to begin one.
                 </td>
               </tr>
@@ -67,6 +69,7 @@ export default async function OnboardingManualPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-400">{formatDateTime(d.updatedAt)}</td>
+                  <td className="px-4 py-3 text-right">{d.status === "DRAFT" && <DeleteDraftButton draftId={d.id} />}</td>
                 </tr>
               ))
             )}
