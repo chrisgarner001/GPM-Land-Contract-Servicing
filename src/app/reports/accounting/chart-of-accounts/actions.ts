@@ -4,9 +4,17 @@ import { db } from "@/db/client";
 import { glCodes } from "@/db/schema/setup";
 import { GL_CODE_TYPE_LABELS } from "@/app/setup/gl-codes/glCodeTypeLabels";
 import { sendEmail } from "@/lib/resend";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export async function emailChartOfAccountsAction(recipientEmail: string): Promise<{ success?: string; error?: string }> {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
+
     const rows = await db.select().from(glCodes).orderBy(glCodes.code);
     const body = rows
       .map((g) => `<tr><td>${g.code}</td><td>${g.description ?? "—"}</td><td>${g.type ? GL_CODE_TYPE_LABELS[g.type] : "—"}</td></tr>`)

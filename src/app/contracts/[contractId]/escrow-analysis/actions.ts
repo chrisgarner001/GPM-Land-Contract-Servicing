@@ -6,6 +6,8 @@ import { db } from "@/db/client";
 import { escrowAnalyses, escrowAnalysisTriggerEnum, trustLedgerEntries } from "@/db/schema/escrow";
 import { contracts } from "@/db/schema/contracts";
 import { runEscrowAnalysis } from "@/domain/escrow/runEscrowAnalysis";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export interface RunAnalysisState {
   error?: string;
@@ -51,6 +53,16 @@ export async function runAnalysisAction(
   }
   if (!Number.isFinite(projectionPeriodMonths) || projectionPeriodMonths <= 0) {
     return { error: "Enter a valid projection period." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
   }
 
   const result = runEscrowAnalysis({

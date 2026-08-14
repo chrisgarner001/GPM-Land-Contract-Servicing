@@ -7,6 +7,7 @@ import { parties } from "@/db/schema/parties";
 import { partyNotes } from "@/db/schema/notes";
 import { createClient } from "@/lib/supabase/server";
 import { encryptPII, decryptPII } from "@/lib/encryption";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export interface UpdateLenderContactState {
   error?: string;
@@ -22,6 +23,16 @@ export async function updateLenderContact(
   _prevState: UpdateLenderContactState | undefined,
   formData: FormData
 ): Promise<UpdateLenderContactState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   await db
     .update(parties)
     .set({
@@ -56,6 +67,16 @@ export async function updateLenderSensitiveInfo(
   _prevState: UpdateSensitiveInfoState | undefined,
   formData: FormData
 ): Promise<UpdateSensitiveInfoState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const taxId = trimmedOrNull(formData.get("taxId"));
   const achBankName = trimmedOrNull(formData.get("achBankName"));
   const achRoutingNumber = trimmedOrNull(formData.get("achRoutingNumber"));
@@ -105,6 +126,16 @@ export async function updateLenderDriveFolder(
   _prevState: UpdateDriveFolderState | undefined,
   formData: FormData
 ): Promise<UpdateDriveFolderState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const url = formData.get("googleDriveFolderUrl");
   const trimmed = typeof url === "string" ? url.trim() : "";
   if (trimmed && !/^https:\/\/.+/.test(trimmed)) {
@@ -127,6 +158,16 @@ export async function updateLenderDefaultBankAccount(
   _prevState: UpdateDefaultBankAccountState | undefined,
   formData: FormData
 ): Promise<UpdateDefaultBankAccountState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const bankAccountId = formData.get("bankAccountId");
   const preferredPaymentMethod = formData.get("preferredPaymentMethod");
 
@@ -152,6 +193,16 @@ export async function updateLenderPortalPin(
   _prevState: UpdateLenderPortalPinState | undefined,
   formData: FormData
 ): Promise<UpdateLenderPortalPinState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   await db
     .update(parties)
     .set({ portalPin: trimmedOrNull(formData.get("portalPin")), updatedAt: new Date() })
@@ -171,6 +222,16 @@ export async function deactivateLenderPortalAction(
   _prevState: SetLenderPortalDeactivatedState | undefined,
   _formData: FormData
 ): Promise<SetLenderPortalDeactivatedState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   await db.update(parties).set({ portalDeactivated: true, updatedAt: new Date() }).where(eq(parties.id, lenderId));
   revalidatePath(`/lenders/${lenderId}`);
   return { success: "Portal access deactivated." };
@@ -181,6 +242,16 @@ export async function reactivateLenderPortalAction(
   _prevState: SetLenderPortalDeactivatedState | undefined,
   _formData: FormData
 ): Promise<SetLenderPortalDeactivatedState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   await db.update(parties).set({ portalDeactivated: false, updatedAt: new Date() }).where(eq(parties.id, lenderId));
   revalidatePath(`/lenders/${lenderId}`);
   return { success: "Portal access reactivated." };
@@ -195,15 +266,20 @@ export async function addLenderNote(
   _prevState: AddPartyNoteState | undefined,
   formData: FormData
 ): Promise<AddPartyNoteState> {
-  const body = formData.get("body");
-  if (typeof body !== "string" || !body.trim()) {
-    return { error: "Note cannot be empty." };
-  }
-
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
+  const body = formData.get("body");
+  if (typeof body !== "string" || !body.trim()) {
+    return { error: "Note cannot be empty." };
+  }
 
   await db.insert(partyNotes).values({ partyId: lenderId, authorEmail: user?.email ?? null, body: body.trim() });
 

@@ -1,7 +1,9 @@
 "use server";
 
+import { createClient } from "@/lib/supabase/server";
 import { getVendorOptions, getVendorStatementOfAccount, renderVendorStatementHtml } from "@/server/vendorReports";
 import { sendEmail } from "@/lib/resend";
+import { requireEditAccess } from "@/lib/staffRole";
 
 async function getVendorName(vendorId: string): Promise<string> {
   const options = await getVendorOptions();
@@ -15,6 +17,12 @@ export async function emailVendorStatementAction(
   recipientEmail: string
 ): Promise<{ success?: string; error?: string }> {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
+
     const [data] = await getVendorStatementOfAccount([vendorId], startDate, endDate);
     const vendorName = await getVendorName(vendorId);
     const html = renderVendorStatementHtml(vendorName, data, startDate, endDate);

@@ -1,15 +1,21 @@
 import { pgTable, uuid, text, pgEnum, timestamp, bigint } from "drizzle-orm/pg-core";
 
-export const staffRoleEnum = pgEnum("staff_role", ["ADMIN", "STAFF"]);
+// ADMIN: full access, including Program Customization. OFFICE: everything
+// except Program Customization (same access "STAFF" always had — renamed
+// for clarity now that a third tier exists). USER: view-only — every
+// mutating Server Action calls requireEditAccess() (src/lib/staffRole.ts),
+// which throws for this role before anything is written.
+export const staffRoleEnum = pgEnum("staff_role", ["ADMIN", "OFFICE", "USER"]);
 
-// Reference list only — informational (who's on the team, their role, how
-// to reach them). Does not control real login access; that's managed
-// directly in the Supabase dashboard, same as today.
+// role IS real login-gating now (see requireEditAccess/getStaffRole) — this
+// row is still matched to a Supabase Auth account only by email (no FK to
+// auth.users), so keep the two in sync by hand when changing someone's
+// email.
 export const staffUsers = pgTable("staff_users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   email: text("email").notNull(),
-  role: staffRoleEnum("role").notNull().default("STAFF"),
+  role: staffRoleEnum("role").notNull().default("OFFICE"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

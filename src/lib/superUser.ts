@@ -1,13 +1,7 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/db/client";
-import { staffUsers } from "@/db/schema/setup";
+import { getStaffRole } from "./staffRole";
 
-// The first REAL enforcement of staff_users.role in this app — until now it
-// was purely informational (see the schema comment). Gates the Program
-// Customization agent only; every other page still relies solely on the
-// staff Supabase-session gate in src/proxy.ts.
+// Gates the Program Customization agent only — every other page's access is
+// governed by getStaffRole/requireEditAccess (src/lib/staffRole.ts) instead.
 export async function isSuperUser(email: string | null | undefined): Promise<boolean> {
-  if (!email) return false;
-  const [row] = await db.select({ role: staffUsers.role }).from(staffUsers).where(eq(staffUsers.email, email));
-  return row?.role === "ADMIN";
+  return (await getStaffRole(email)) === "ADMIN";
 }

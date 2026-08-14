@@ -8,6 +8,7 @@ import { contracts } from "@/db/schema/contracts";
 import { partyNotes } from "@/db/schema/notes";
 import { createClient } from "@/lib/supabase/server";
 import { encryptPII, decryptPII } from "@/lib/encryption";
+import { requireEditAccess } from "@/lib/staffRole";
 
 function trimmedOrNull(value: FormDataEntryValue | null): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -22,15 +23,20 @@ export async function addPartyNote(
   _prevState: AddPartyNoteState | undefined,
   formData: FormData
 ): Promise<AddPartyNoteState> {
-  const body = formData.get("body");
-  if (typeof body !== "string" || !body.trim()) {
-    return { error: "Note cannot be empty." };
-  }
-
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
+  const body = formData.get("body");
+  if (typeof body !== "string" || !body.trim()) {
+    return { error: "Note cannot be empty." };
+  }
 
   await db.insert(partyNotes).values({ partyId, authorEmail: user?.email ?? null, body: body.trim() });
 
@@ -48,6 +54,16 @@ export async function updateBorrowerContactInfo(
   _prevState: UpdateBorrowerContactInfoState | undefined,
   formData: FormData
 ): Promise<UpdateBorrowerContactInfoState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const emailFormatRaw = formData.get("emailFormat");
   const emailFormat = emailFormatEnum.enumValues.includes(emailFormatRaw as (typeof emailFormatEnum.enumValues)[number])
     ? (emailFormatRaw as (typeof emailFormatEnum.enumValues)[number])
@@ -96,6 +112,16 @@ export async function updateBorrowerTaxInfo(
   _prevState: UpdateBorrowerTaxInfoState | undefined,
   formData: FormData
 ): Promise<UpdateBorrowerTaxInfoState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const taxId = trimmedOrNull(formData.get("taxId"));
   const tinTypeRaw = formData.get("tinType");
   const tinType = tinTypeEnum.enumValues.includes(tinTypeRaw as (typeof tinTypeEnum.enumValues)[number])
@@ -142,6 +168,16 @@ export async function updateBorrowerPortalPinAction(
   _prevState: UpdateBorrowerPortalPinState | undefined,
   formData: FormData
 ): Promise<UpdateBorrowerPortalPinState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   await db
     .update(contracts)
     .set({ borrowerPortalPin: trimmedOrNull(formData.get("portalPin")), updatedAt: new Date() })
@@ -162,6 +198,16 @@ export async function deactivateBorrowerPortalAction(
   _prevState: SetBorrowerPortalDeactivatedState | undefined,
   _formData: FormData
 ): Promise<SetBorrowerPortalDeactivatedState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   await db.update(contracts).set({ borrowerPortalDeactivated: true, updatedAt: new Date() }).where(eq(contracts.id, contractId));
   revalidatePath(`/borrowers/${partyId}`);
   return { success: "Portal access deactivated." };
@@ -173,6 +219,16 @@ export async function reactivateBorrowerPortalAction(
   _prevState: SetBorrowerPortalDeactivatedState | undefined,
   _formData: FormData
 ): Promise<SetBorrowerPortalDeactivatedState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   await db.update(contracts).set({ borrowerPortalDeactivated: false, updatedAt: new Date() }).where(eq(contracts.id, contractId));
   revalidatePath(`/borrowers/${partyId}`);
   return { success: "Portal access reactivated." };

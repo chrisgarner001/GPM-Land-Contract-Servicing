@@ -2,6 +2,8 @@
 
 import { getCheckRegisterData, renderCheckRegisterHtml } from "@/server/accountingReports";
 import { sendEmail } from "@/lib/resend";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export async function emailCheckRegisterAction(
   bankAccountFilter: string,
@@ -10,6 +12,12 @@ export async function emailCheckRegisterAction(
   recipientEmail: string
 ): Promise<{ success?: string; error?: string }> {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
+
     const data = await getCheckRegisterData(bankAccountFilter, startDate, endDate);
     const html = renderCheckRegisterHtml(data);
     await sendEmail({ to: recipientEmail, subject: `Check Register — ${data.bankAccountLabel}`, html });

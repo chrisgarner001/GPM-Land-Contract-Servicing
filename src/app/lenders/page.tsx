@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Landmark } from "lucide-react";
-import { eq, gt, sum, countDistinct, and } from "drizzle-orm";
+import { eq, gt, sum, countDistinct, and, notExists, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { parties } from "@/db/schema/parties";
 import { contractParties } from "@/db/schema/contracts";
@@ -19,9 +19,25 @@ async function getLenders() {
       contractsFunded: countDistinct(contractParties.contractId),
     })
     .from(parties)
-    .innerJoin(
+    // Left join — a lender just added via "Add New Lender" isn't funding
+    // anything yet, but should still show up here (previously an inner join
+    // silently hid them, which looked exactly like the record hadn't saved
+    // at all). Only the active-funding rows count toward "Contracts Funded".
+    .leftJoin(
       contractParties,
       and(eq(contractParties.partyId, parties.id), eq(contractParties.role, "INVESTOR_PAYEE"), gt(contractParties.ownershipPercent, "0"))
+    )
+    // Excludes borrowers/sellers — a party only belongs on this list if it's
+    // never held one of their roles. A never-funded "Add New Lender" party
+    // (zero contract_parties rows at all) still passes this, same as a past
+    // lender whose funding has since closed out (ownershipPercent = 0).
+    .where(
+      notExists(
+        db
+          .select({ id: contractParties.id })
+          .from(contractParties)
+          .where(and(eq(contractParties.partyId, parties.id), inArray(contractParties.role, ["BUYER", "CO_BUYER", "SELLER", "CO_SELLER"])))
+      )
     )
     .groupBy(parties.id)
     .orderBy(parties.displayName);

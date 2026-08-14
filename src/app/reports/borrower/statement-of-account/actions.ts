@@ -5,6 +5,7 @@ import { getStatementOfAccountData, renderStatementOfAccountHtml } from "@/serve
 import { sendEmail } from "@/lib/resend";
 import { db } from "@/db/client";
 import { postedBorrowerDocuments } from "@/db/schema/postedBorrowerDocuments";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export async function emailStatementAction(
   contractId: string,
@@ -13,6 +14,12 @@ export async function emailStatementAction(
   recipientEmail: string
 ): Promise<{ success?: string; error?: string }> {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
+
     const data = await getStatementOfAccountData(contractId, startDate, endDate);
     const html = renderStatementOfAccountHtml(data, startDate, endDate);
     await sendEmail({ to: recipientEmail, subject: `Statement of Account — ${data.contractNumber}`, html });
@@ -32,6 +39,7 @@ export async function postStatementAction(
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
 
     const data = await getStatementOfAccountData(contractId, startDate, endDate);
     const html = renderStatementOfAccountHtml(data, startDate, endDate);

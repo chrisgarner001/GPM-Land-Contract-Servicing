@@ -19,6 +19,7 @@ import { escrowAnalyses, trustLedgerEntries } from "@/db/schema/escrow";
 import { runEscrowAnalysis } from "@/domain/escrow/runEscrowAnalysis";
 import { encryptPII } from "@/lib/encryption";
 import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 import { createContractDraft, getContractDraft, saveContractDraft, type ContractDraftAnswers } from "@/server/contractDrafts";
 
 // Shared by createLandContractAction (Import flow, no draft) and
@@ -481,6 +482,16 @@ async function createLandContract(
 }
 
 export async function createLandContractAction(_prevState: WizardFormState | undefined, formData: FormData): Promise<WizardFormState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const result = await createLandContract(formData);
   if (result.error) return { error: result.error };
   redirect(`/contracts/${result.contractId}`);
@@ -496,6 +507,11 @@ export async function submitContractDraftAction(
     data: { user },
   } = await supabase.auth.getUser();
   const updatedBy = user?.email ?? null;
+  try {
+    await requireEditAccess(updatedBy);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
 
   if (formData.get("intent") === "save") {
     await saveContractDraft(draftId, collectAnswers(formData), updatedBy);
@@ -520,6 +536,7 @@ export async function createDraftAction(): Promise<void> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  await requireEditAccess(user?.email);
   const id = await createContractDraft(user?.email ?? null);
   redirect(`/onboarding/manual/${id}`);
 }

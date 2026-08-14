@@ -5,6 +5,8 @@ import { db } from "@/db/client";
 import { parties } from "@/db/schema/parties";
 import { contractParties } from "@/db/schema/contracts";
 import { createLenderPortalSession } from "@/lib/lenderPortalSession";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export interface LogInAsLenderState {
   error?: string;
@@ -25,6 +27,16 @@ export interface LogInAsLenderState {
 // redirecting the staff member's own tab, so staff can see exactly what the
 // lender sees side-by-side with the admin view they were just on.
 export async function logInAsLenderAction(lenderId: string): Promise<LogInAsLenderState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const [lender] = await db
     .select({ email: parties.email, portalPin: parties.portalPin, portalDeactivated: parties.portalDeactivated })
     .from(parties)

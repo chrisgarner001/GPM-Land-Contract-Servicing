@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { processLenderDistribution, overridePaymentRelease } from "@/server/lenderPaymentRuns";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export interface ProcessDistributionState {
   error?: string;
@@ -13,6 +15,16 @@ export async function processLenderDistributionAction(
   _prevState: ProcessDistributionState | undefined,
   formData: FormData
 ): Promise<ProcessDistributionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const runDate = formData.get("runDate");
   const sweepBaselineDate = formData.get("sweepBaseline");
   const paymentMethod = formData.get("paymentMethod");
@@ -56,6 +68,16 @@ export async function overridePaymentReleaseAction(
   paymentId: string,
   _prevState: OverrideReleaseState | undefined
 ): Promise<OverrideReleaseState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   try {
     await overridePaymentRelease(paymentId);
   } catch (e) {

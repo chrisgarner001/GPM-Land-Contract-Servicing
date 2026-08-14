@@ -5,6 +5,7 @@ import { getPortfolioChargesData, getLenderOptions, renderPortfolioChargesHtml }
 import { sendEmail } from "@/lib/resend";
 import { db } from "@/db/client";
 import { postedLenderDocuments } from "@/db/schema/postedLenderDocuments";
+import { requireEditAccess } from "@/lib/staffRole";
 
 async function getLenderName(lenderId: string): Promise<string> {
   const options = await getLenderOptions();
@@ -18,6 +19,12 @@ export async function emailPortfolioChargesAction(
   recipientEmail: string
 ): Promise<{ success?: string; error?: string }> {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
+
     const [data] = await getPortfolioChargesData([lenderId], startDate, endDate);
     const lenderName = await getLenderName(lenderId);
     const html = renderPortfolioChargesHtml(lenderName, data, startDate, endDate);
@@ -38,6 +45,7 @@ export async function postPortfolioChargesAction(
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
 
     const [data] = await getPortfolioChargesData([lenderId], startDate, endDate);
     const lenderName = await getLenderName(lenderId);

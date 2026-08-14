@@ -2,11 +2,19 @@
 
 import { getNameAddressListing, renderNameAddressListingHtml } from "@/server/borrowerReports";
 import { sendEmail } from "@/lib/resend";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 // Recipient is always staff-entered here (no single "the borrower" to
 // default to — this report is every borrower at once).
 export async function emailNameAddressListingAction(recipientEmail: string): Promise<{ success?: string; error?: string }> {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
+
     const rows = await getNameAddressListing();
     const html = renderNameAddressListingHtml(rows);
     await sendEmail({ to: recipientEmail, subject: "Borrower Name & Address Listing", html });

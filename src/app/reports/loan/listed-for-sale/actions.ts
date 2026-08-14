@@ -1,10 +1,18 @@
 "use server";
 
+import { createClient } from "@/lib/supabase/server";
 import { getListedForSaleProperties, renderListedForSaleHtml } from "@/server/loanReports";
 import { sendEmail } from "@/lib/resend";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export async function emailListedForSaleAction(recipientEmail: string): Promise<{ success?: string; error?: string }> {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
+
     const rows = await getListedForSaleProperties();
     const html = renderListedForSaleHtml(rows);
     await sendEmail({ to: recipientEmail, subject: "Properties Listed For Sale", html });

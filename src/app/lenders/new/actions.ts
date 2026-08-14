@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/db/client";
 import { parties, partyTypeEnum } from "@/db/schema/parties";
 import { encryptPII } from "@/lib/encryption";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export interface AddLenderState {
   error?: string;
@@ -14,6 +16,16 @@ function trimmedOrNull(value: FormDataEntryValue | null): string | null {
 }
 
 export async function addLender(_prevState: AddLenderState | undefined, formData: FormData): Promise<AddLenderState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const partyTypeRaw = formData.get("partyType");
   const displayName = formData.get("displayName");
 

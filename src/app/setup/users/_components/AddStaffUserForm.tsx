@@ -42,11 +42,12 @@ export default function AddStaffUserForm() {
         <select
           id="role"
           name="role"
-          defaultValue="STAFF"
+          defaultValue="OFFICE"
           className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
         >
-          <option value="STAFF">Staff</option>
-          <option value="ADMIN">Admin</option>
+          <option value="ADMIN">Admin — full access</option>
+          <option value="OFFICE">Office — all areas except Program Customization</option>
+          <option value="USER">User — view only, no payments or data entry</option>
         </select>
       </div>
       <div className="flex items-end justify-between gap-2">

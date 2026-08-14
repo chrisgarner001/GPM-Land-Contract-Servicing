@@ -6,6 +6,8 @@ import { db } from "@/db/client";
 import { properties, propertyTypeEnum } from "@/db/schema/parties";
 import { propertyAssessorSnapshots } from "@/db/schema/assessorSearch";
 import { lookupPropertyByAddress, lookupPropertyById } from "@/lib/assessorSearch";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export interface UpdatePropertyState {
   error?: string;
@@ -27,6 +29,16 @@ export async function updatePropertyAction(
   _prevState: UpdatePropertyState | undefined,
   formData: FormData
 ): Promise<UpdatePropertyState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const streetAddress = trimmedOrNull(formData.get("streetAddress"));
   const city = trimmedOrNull(formData.get("city"));
   const state = trimmedOrNull(formData.get("state"));
@@ -84,6 +96,16 @@ export async function refreshAssessorData(
   _formData: FormData
 ): Promise<RefreshAssessorDataState> {
   /* eslint-enable @typescript-eslint/no-unused-vars */
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const [property] = await db.select().from(properties).where(eq(properties.id, propertyId));
   if (!property) return { error: "Property not found." };
 

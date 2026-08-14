@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
 import { parties, partyTypeEnum } from "@/db/schema/parties";
 import { addLenderFunding, updateLenderFunding } from "@/server/funding";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export interface AddLenderFundingState {
   error?: string;
@@ -43,6 +45,16 @@ export async function addLenderFundingAction(
     if (!Number.isFinite(brokerServicingFeeCents) || brokerServicingFeeCents < 0) {
       return { error: "Enter a valid servicing fee." };
     }
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
   }
 
   let lenderPartyId: string;
@@ -122,6 +134,16 @@ export async function updateLenderFundingAction(
     if (!Number.isFinite(brokerServicingFeeCents) || brokerServicingFeeCents < 0) {
       return { error: "Enter a valid servicing fee." };
     }
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
   }
 
   await updateLenderFunding({

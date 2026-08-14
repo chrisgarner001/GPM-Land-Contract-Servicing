@@ -5,6 +5,7 @@ import { getPayoffLetterData, renderPayoffLetterHtml } from "@/server/borrowerRe
 import { sendEmail } from "@/lib/resend";
 import { db } from "@/db/client";
 import { postedBorrowerDocuments } from "@/db/schema/postedBorrowerDocuments";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export async function emailPayoffLetterAction(
   contractId: string,
@@ -13,6 +14,12 @@ export async function emailPayoffLetterAction(
   recipientEmail: string
 ): Promise<{ success?: string; error?: string }> {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
+
     const data = await getPayoffLetterData(contractId, payoffDate, recipientName);
     const html = renderPayoffLetterHtml(data);
     await sendEmail({ to: recipientEmail, subject: `Payoff Letter — ${data.contractNumber}`, html });
@@ -32,6 +39,7 @@ export async function postPayoffLetterAction(
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
 
     const data = await getPayoffLetterData(contractId, payoffDate, recipientName);
     const html = renderPayoffLetterHtml(data);

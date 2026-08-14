@@ -4,6 +4,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { contracts } from "@/db/schema/contracts";
 import { createBorrowerPortalSession } from "@/lib/borrowerPortalSession";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export interface LogInAsBorrowerState {
   error?: string;
@@ -21,6 +23,16 @@ export interface LogInAsBorrowerState {
 // redirecting the staff member's own tab, so staff can see exactly what the
 // borrower sees side-by-side with the admin view they were just on.
 export async function logInAsBorrowerAction(contractId: string): Promise<LogInAsBorrowerState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const [contract] = await db
     .select({ borrowerPortalDeactivated: contracts.borrowerPortalDeactivated })
     .from(contracts)

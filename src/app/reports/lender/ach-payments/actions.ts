@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAchPaymentsData, getLenderOptions, renderAchPaymentsHtml } from "@/server/lenderReports";
 import { db } from "@/db/client";
 import { postedLenderDocuments } from "@/db/schema/postedLenderDocuments";
+import { requireEditAccess } from "@/lib/staffRole";
 
 // Universal — posts every currently-listed (i.e. has ACH payments in this
 // range) lender's document in one action, rather than staff clicking Post
@@ -22,6 +23,7 @@ export async function postAllAchPaymentsAction(
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
 
     const [options, allData] = await Promise.all([getLenderOptions(), getAchPaymentsData(lenderIds, startDate, endDate)]);
     const namesById = new Map(options.map((l) => [l.id, l.displayName]));

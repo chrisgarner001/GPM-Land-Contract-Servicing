@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 import { saveDraft, publishPackage } from "@/server/landContractPackages";
 import { lookupPropertyByAddress } from "@/lib/assessorSearch";
 import type { Answers } from "@/domain/landContractPackage/answers";
@@ -29,13 +30,18 @@ export async function submitPackageAction(
   _prevState: SubmitPackageState | undefined,
   formData: FormData
 ): Promise<SubmitPackageState> {
-  const intent = formData.get("intent");
-  const answers = collectAnswers(formData);
-
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
+  const intent = formData.get("intent");
+  const answers = collectAnswers(formData);
 
   if (intent === "publish") {
     if (!answers.buyer_name?.trim()) return { error: "Buyer Name is required before publishing." };

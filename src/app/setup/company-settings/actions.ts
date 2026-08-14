@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { updateCompanySettings } from "@/server/companySettings";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export interface UpdateCompanySettingsState {
   error?: string;
@@ -23,6 +25,16 @@ export async function updateCompanySettingsAction(
   _prevState: UpdateCompanySettingsState | undefined,
   formData: FormData
 ): Promise<UpdateCompanySettingsState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const companyName = trimmedOrNull(formData.get("companyName"));
   const preparerFirmName = trimmedOrNull(formData.get("preparerFirmName"));
   if (!companyName) return { error: "Company Name is required." };

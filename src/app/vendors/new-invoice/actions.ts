@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createVendor, createVendorInvoice } from "@/server/vendorInvoices";
 import { paymentMethodEnum } from "@/db/schema/payments";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export interface CreateInvoiceState {
   error?: string;
@@ -13,6 +15,16 @@ export async function createInvoiceAction(
   _prevState: CreateInvoiceState | undefined,
   formData: FormData
 ): Promise<CreateInvoiceState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const vendorMode = formData.get("vendorMode");
   const contractId = formData.get("contractId");
   const amountDollars = formData.get("amount");

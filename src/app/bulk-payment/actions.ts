@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { contracts, contractParties } from "@/db/schema/contracts";
 import { parties } from "@/db/schema/parties";
 import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 import { extractCheckData } from "@/server/checkExtraction";
 import { recordPayment } from "@/server/payments";
 
@@ -113,6 +114,7 @@ export async function submitBulkPayments(submissions: BulkPaymentSubmission[]): 
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  await requireEditAccess(user?.email);
 
   let recorded = 0;
   const failed: { contractId: string; error: string }[] = [];

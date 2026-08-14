@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { vendors } from "@/db/schema/vendors";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export interface UpdateVendorDefaultBankAccountState {
   error?: string;
@@ -15,6 +17,16 @@ export async function updateVendorDefaultBankAccount(
   _prevState: UpdateVendorDefaultBankAccountState | undefined,
   formData: FormData
 ): Promise<UpdateVendorDefaultBankAccountState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const bankAccountId = formData.get("bankAccountId");
 
   await db
@@ -36,6 +48,16 @@ export async function updateVendorDefaultGlCode(
   _prevState: UpdateVendorDefaultGlCodeState | undefined,
   formData: FormData
 ): Promise<UpdateVendorDefaultGlCodeState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const glCode = formData.get("glCode");
 
   await db

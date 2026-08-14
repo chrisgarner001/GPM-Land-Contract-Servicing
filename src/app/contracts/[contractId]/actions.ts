@@ -7,6 +7,7 @@ import { contracts, loanTypeEnum } from "@/db/schema/contracts";
 import { contractNotes } from "@/db/schema/notes";
 import { paymentMethodEnum } from "@/db/schema/payments";
 import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 import { recordPayment, reversePayment, recordPrincipalPaydown } from "@/server/payments";
 import { cancelContract, deleteContractHard } from "@/server/contractDeletion";
 import { redirect } from "next/navigation";
@@ -59,6 +60,12 @@ export async function makePayment(
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
 
   let result;
   try {
@@ -122,6 +129,12 @@ export async function recordPrincipalPaydownAction(
   } = await supabase.auth.getUser();
 
   try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
+  try {
     await recordPrincipalPaydown({
       contractId,
       receivedDate,
@@ -163,6 +176,12 @@ export async function reversePaymentAction(
   } = await supabase.auth.getUser();
 
   try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
+  try {
     await reversePayment(paymentId, user?.email ?? null);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to reverse payment." };
@@ -194,6 +213,12 @@ export async function addNote(
     data: { user },
   } = await supabase.auth.getUser();
 
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   await db.insert(contractNotes).values({ contractId, authorEmail: user?.email ?? null, body: body.trim() });
 
   revalidatePath(`/contracts/${contractId}`);
@@ -222,6 +247,16 @@ export async function updateCourtStatus(
   _prevState: UpdateCourtStatusState | undefined,
   formData: FormData
 ): Promise<UpdateCourtStatusState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   await db
     .update(contracts)
     .set({
@@ -253,6 +288,16 @@ export async function updateLoanType(
     return { error: "Select a valid loan type." };
   }
 
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   await db
     .update(contracts)
     .set({ loanType: raw as (typeof loanTypeEnum.enumValues)[number] })
@@ -279,6 +324,16 @@ export async function updateDriveFolderLink(
     return { error: "Enter a valid https:// link." };
   }
 
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   await db
     .update(contracts)
     .set({ googleDriveFolderUrl: trimmed || null })
@@ -293,6 +348,16 @@ export interface CancelContractState {
 }
 
 export async function cancelContractAction(contractId: string, _prevState: CancelContractState | undefined): Promise<CancelContractState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   await cancelContract(contractId);
   revalidatePath(`/contracts/${contractId}`);
   revalidatePath("/contracts");
@@ -304,6 +369,16 @@ export interface DeleteContractState {
 }
 
 export async function deleteContractAction(contractId: string, _prevState: DeleteContractState | undefined): Promise<DeleteContractState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   try {
     await deleteContractHard(contractId);
   } catch (e) {

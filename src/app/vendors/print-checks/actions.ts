@@ -2,8 +2,16 @@
 
 import { redirect } from "next/navigation";
 import { createVendorChecks } from "@/server/printChecks";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export async function createVendorChecksAction(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  await requireEditAccess(user?.email);
+
   const disbursementIds = formData.getAll("disbursementIds").map(String);
   const bankAccountId = formData.get("bankAccountId");
   const checkDate = formData.get("checkDate");

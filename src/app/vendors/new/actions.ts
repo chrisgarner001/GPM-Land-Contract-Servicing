@@ -4,12 +4,24 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { vendors } from "@/db/schema/vendors";
+import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export interface AddVendorState {
   error?: string;
 }
 
 export async function addVendor(_prevState: AddVendorState | undefined, formData: FormData): Promise<AddVendorState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  try {
+    await requireEditAccess(user?.email);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not authorized." };
+  }
+
   const vendorAccountCode = formData.get("vendorAccountCode");
   const displayName = formData.get("displayName");
   const referenceLine = formData.get("referenceLine");

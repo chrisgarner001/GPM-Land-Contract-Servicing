@@ -5,6 +5,7 @@ import { getOutstandingChargesData, renderOutstandingChargesHtml } from "@/serve
 import { sendEmail } from "@/lib/resend";
 import { db } from "@/db/client";
 import { postedBorrowerDocuments } from "@/db/schema/postedBorrowerDocuments";
+import { requireEditAccess } from "@/lib/staffRole";
 
 export async function emailChargesAction(
   contractId: string,
@@ -13,6 +14,12 @@ export async function emailChargesAction(
   recipientEmail: string
 ): Promise<{ success?: string; error?: string }> {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
+
     const data = await getOutstandingChargesData(contractId, startDate, endDate);
     const html = renderOutstandingChargesHtml(data, startDate, endDate);
     await sendEmail({ to: recipientEmail, subject: `Outstanding Charges — ${data.contractNumber}`, html });
@@ -32,6 +39,7 @@ export async function postChargesAction(
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    await requireEditAccess(user?.email);
 
     const data = await getOutstandingChargesData(contractId, startDate, endDate);
     const html = renderOutstandingChargesHtml(data, startDate, endDate);

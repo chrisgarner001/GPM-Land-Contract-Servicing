@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { requireEditAccess } from "@/lib/staffRole";
 import {
   draftNoticeContent,
   saveNoticeTemplate,
@@ -34,14 +35,15 @@ export async function saveNoticeTemplateAction(
   draft: NoticeDraft,
   minDaysPastDue: number | null
 ): Promise<{ id: string }> {
-  if (!name.trim()) throw new Error("Enter a name for this template.");
-  if (!draft.body.trim()) throw new Error("Nothing to save yet — draft a notice first.");
-  if (channel === "EMAIL" && !draft.subject?.trim()) throw new Error("This email notice needs a subject line.");
-
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  await requireEditAccess(user?.email);
+
+  if (!name.trim()) throw new Error("Enter a name for this template.");
+  if (!draft.body.trim()) throw new Error("Nothing to save yet — draft a notice first.");
+  if (channel === "EMAIL" && !draft.subject?.trim()) throw new Error("This email notice needs a subject line.");
 
   const result = await saveNoticeTemplate({
     category,

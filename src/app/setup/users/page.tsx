@@ -4,6 +4,9 @@ import { db } from "@/db/client";
 import { staffUsers } from "@/db/schema/setup";
 import AddStaffUserForm from "./_components/AddStaffUserForm";
 import InviteButton from "./_components/InviteButton";
+import SetPasswordButton from "./_components/SetPasswordButton";
+
+const ROLE_LABELS: Record<string, string> = { ADMIN: "Admin", OFFICE: "Office", USER: "User (view only)" };
 
 export default async function SetupUsersPage() {
   const rows = await db.select().from(staffUsers).orderBy(staffUsers.name);
@@ -40,9 +43,12 @@ export default async function SetupUsersPage() {
                 <tr key={u.id}>
                   <td className="px-4 py-3 font-medium text-slate-900">{u.name}</td>
                   <td className="px-4 py-3 text-slate-600">{u.email}</td>
-                  <td className="px-4 py-3 text-slate-600">{u.role === "ADMIN" ? "Admin" : "Staff"}</td>
+                  <td className="px-4 py-3 text-slate-600">{ROLE_LABELS[u.role] ?? u.role}</td>
                   <td className="px-4 py-3">
-                    <InviteButton email={u.email} />
+                    <div className="flex items-center gap-2">
+                      <InviteButton email={u.email} />
+                      <SetPasswordButton email={u.email} />
+                    </div>
                   </td>
                 </tr>
               ))
