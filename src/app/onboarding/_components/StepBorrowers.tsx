@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { labelClass, fieldClass } from "./fieldClass";
+import { labelClass, fieldClass, inputClass } from "./fieldClass";
 import type { LandContractInitialValues } from "./NewContractWizard";
 
 function PersonFields({
@@ -139,16 +139,171 @@ function PersonFields({
           />
         </div>
         <div>
-          <label className={labelClass} htmlFor={`${prefix}Phone`}>
-            Phone
+          <label className={labelClass} htmlFor={`${prefix}EmailFormat`}>
+            Email Format
           </label>
-          <input
-            id={`${prefix}Phone`}
-            name={`${prefix}Phone`}
-            type="text"
-            defaultValue={phone ?? ""}
-            className={fieldClass(phone, highlightMissing)}
-          />
+          <select id={`${prefix}EmailFormat`} name={`${prefix}EmailFormat`} defaultValue="HTML" className={inputClass}>
+            <option value="HTML">HTML</option>
+            <option value="TEXT">Text</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        <div>
+          <label className={labelClass} htmlFor={`${prefix}PhoneHome`}>
+            Home Phone
+          </label>
+          <input id={`${prefix}PhoneHome`} name={`${prefix}PhoneHome`} type="text" defaultValue={phone ?? ""} className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass} htmlFor={`${prefix}PhoneWork`}>
+            Work Phone
+          </label>
+          <input id={`${prefix}PhoneWork`} name={`${prefix}PhoneWork`} type="text" className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass} htmlFor={`${prefix}PhoneMobile`}>
+            Mobile Phone
+          </label>
+          <input id={`${prefix}PhoneMobile`} name={`${prefix}PhoneMobile`} type="text" className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass} htmlFor={`${prefix}PhoneFax`}>
+            Fax
+          </label>
+          <input id={`${prefix}PhoneFax`} name={`${prefix}PhoneFax`} type="text" className={inputClass} />
+        </div>
+      </div>
+
+      <div className="border-t border-slate-100 pt-3">
+        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Mailing Address</h4>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <label className={labelClass} htmlFor={`${prefix}MailingAddressLine1`}>
+              Address Line 1
+            </label>
+            <input id={`${prefix}MailingAddressLine1`} name={`${prefix}MailingAddressLine1`} type="text" className={inputClass} />
+          </div>
+          <div className="col-span-2">
+            <label className={labelClass} htmlFor={`${prefix}MailingAddressLine2`}>
+              Address Line 2
+            </label>
+            <input id={`${prefix}MailingAddressLine2`} name={`${prefix}MailingAddressLine2`} type="text" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass} htmlFor={`${prefix}MailingCity`}>
+              City
+            </label>
+            <input id={`${prefix}MailingCity`} name={`${prefix}MailingCity`} type="text" className={inputClass} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={labelClass} htmlFor={`${prefix}MailingState`}>
+                State
+              </label>
+              <input id={`${prefix}MailingState`} name={`${prefix}MailingState`} type="text" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass} htmlFor={`${prefix}MailingZip`}>
+                Zip
+              </label>
+              <input id={`${prefix}MailingZip`} name={`${prefix}MailingZip`} type="text" className={inputClass} />
+            </div>
+          </div>
+          <div className="col-span-2">
+            <label className={labelClass} htmlFor={`${prefix}MailingCountry`}>
+              Country
+            </label>
+            <input id={`${prefix}MailingCountry`} name={`${prefix}MailingCountry`} type="text" defaultValue="United States" className={inputClass} />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-slate-100 pt-3">
+        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Tax &amp; Notices</h4>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelClass} htmlFor={`${prefix}TaxId`}>
+              TIN
+            </label>
+            <input id={`${prefix}TaxId`} name={`${prefix}TaxId`} type="text" placeholder="•••••••••" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass} htmlFor={`${prefix}TinType`}>
+              TIN Type
+            </label>
+            <select id={`${prefix}TinType`} name={`${prefix}TinType`} defaultValue="SSN" className={inputClass}>
+              <option value="SSN">SSN</option>
+              <option value="EIN">EIN</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor={`${prefix}LegalStructure`}>
+              Legal Structure
+            </label>
+            <select id={`${prefix}LegalStructure`} name={`${prefix}LegalStructure`} defaultValue="" className={inputClass}>
+              <option value="">—</option>
+              <option value="Corporation">Corporation</option>
+              <option value="Individual">Individual</option>
+              <option value="LLC">LLC</option>
+              <option value="LLP">LLP</option>
+              <option value="Trust">Trust</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor={`${prefix}DateOfBirth`}>
+              Date of Birth
+            </label>
+            <input id={`${prefix}DateOfBirth`} name={`${prefix}DateOfBirth`} type="date" className={inputClass} />
+          </div>
+          <div className="col-span-2">
+            <label className={labelClass} htmlFor={`${prefix}AlternateTaxInfo`}>
+              Alternate Tax Info
+            </label>
+            <input id={`${prefix}AlternateTaxInfo`} name={`${prefix}AlternateTaxInfo`} type="text" className={inputClass} />
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <p className="mb-1 text-xs text-slate-500">Delivery Options</p>
+          <div className="flex gap-4 text-sm text-slate-700">
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" name={`${prefix}DeliveryByPrint`} value="1" />
+              Print
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" name={`${prefix}DeliveryByEmail`} value="1" />
+              Email
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" name={`${prefix}DeliveryBySms`} value="1" />
+              SMS
+            </label>
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <p className="mb-1 text-xs text-slate-500">Notices &amp; Forms</p>
+          <div className="grid grid-cols-2 gap-1 text-sm text-slate-700">
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" name={`${prefix}SendTaxReporting`} value="1" />
+              Tax Reporting
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" name={`${prefix}SendLateNotices`} value="1" />
+              Send Late Notices
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" name={`${prefix}SendPaymentReceipts`} value="1" />
+              Send Payment Receipts
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" name={`${prefix}SendPaymentStatements`} value="1" />
+              Send Payment Statements
+            </label>
+          </div>
         </div>
       </div>
     </div>

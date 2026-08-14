@@ -9,12 +9,14 @@ export default function EditLenderFundingModal({
   fundedAmountCents,
   interestRateAnnual,
   fundingDate,
+  brokerServicingFeeCents,
 }: {
   contractId: string;
   contractPartyId: string;
   fundedAmountCents: number | null;
   interestRateAnnual: string | null;
   fundingDate: string | null;
+  brokerServicingFeeCents: number | null;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const action = updateLenderFundingAction.bind(null, contractId, contractPartyId);
@@ -106,6 +108,25 @@ export default function EditLenderFundingModal({
                   className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs text-slate-500" htmlFor="servicingFee">
+                Servicing Fee ($)
+              </label>
+              <input
+                id="servicingFee"
+                name="servicingFee"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                defaultValue={brokerServicingFeeCents !== null ? (brokerServicingFeeCents / 100).toFixed(2) : ""}
+                className="w-full max-w-[10rem] rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Flat dollar amount deducted from this lender&apos;s share of each payment. Leave blank for none.
+              </p>
             </div>
 
             {state?.error && <p className="text-sm text-red-600">{state.error}</p>}

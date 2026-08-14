@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { parties, partyTypeEnum, propertyTypeEnum, properties } from "@/db/schema/parties";
+import { parties, partyTypeEnum, propertyTypeEnum, properties, emailFormatEnum, tinTypeEnum } from "@/db/schema/parties";
 import {
   contracts,
   contractParties,
@@ -15,6 +15,7 @@ import {
 } from "@/db/schema/contracts";
 import { escrowAnalyses } from "@/db/schema/escrow";
 import { runEscrowAnalysis } from "@/domain/escrow/runEscrowAnalysis";
+import { encryptPII } from "@/lib/encryption";
 
 export interface CreateLandContractState {
   error?: string;
@@ -43,7 +44,29 @@ interface PersonInput {
   salutation: string | null;
   companyName: string | null;
   email: string | null;
-  phone: string | null;
+  emailFormat: "HTML" | "TEXT";
+  phoneHome: string | null;
+  phoneWork: string | null;
+  phoneMobile: string | null;
+  phoneFax: string | null;
+  mailingAddressLine1: string | null;
+  mailingAddressLine2: string | null;
+  mailingCity: string | null;
+  mailingState: string | null;
+  mailingZip: string | null;
+  mailingCountry: string | null;
+  taxId: string | null;
+  tinType: "SSN" | "EIN";
+  legalStructure: string | null;
+  dateOfBirth: string | null;
+  alternateTaxInfo: string | null;
+  deliveryByPrint: boolean;
+  deliveryByEmail: boolean;
+  deliveryBySms: boolean;
+  sendTaxReporting: boolean;
+  sendLateNotices: boolean;
+  sendPaymentReceipts: boolean;
+  sendPaymentStatements: boolean;
 }
 
 // Returns null (not an error) when the prefix has no name at all — used for
@@ -66,7 +89,65 @@ function readPerson(formData: FormData, prefix: string): PersonInput | null {
     salutation: partyType === "INDIVIDUAL" ? trimmedOrNull(formData.get(`${prefix}Salutation`)) : null,
     companyName: partyType === "BUSINESS" ? companyName : null,
     email: trimmedOrNull(formData.get(`${prefix}Email`)),
-    phone: trimmedOrNull(formData.get(`${prefix}Phone`)),
+    emailFormat: enumOrDefault(formData.get(`${prefix}EmailFormat`), emailFormatEnum.enumValues, "HTML"),
+    phoneHome: trimmedOrNull(formData.get(`${prefix}PhoneHome`)),
+    phoneWork: trimmedOrNull(formData.get(`${prefix}PhoneWork`)),
+    phoneMobile: trimmedOrNull(formData.get(`${prefix}PhoneMobile`)),
+    phoneFax: trimmedOrNull(formData.get(`${prefix}PhoneFax`)),
+    mailingAddressLine1: trimmedOrNull(formData.get(`${prefix}MailingAddressLine1`)),
+    mailingAddressLine2: trimmedOrNull(formData.get(`${prefix}MailingAddressLine2`)),
+    mailingCity: trimmedOrNull(formData.get(`${prefix}MailingCity`)),
+    mailingState: trimmedOrNull(formData.get(`${prefix}MailingState`)),
+    mailingZip: trimmedOrNull(formData.get(`${prefix}MailingZip`)),
+    mailingCountry: trimmedOrNull(formData.get(`${prefix}MailingCountry`)),
+    taxId: trimmedOrNull(formData.get(`${prefix}TaxId`)),
+    tinType: enumOrDefault(formData.get(`${prefix}TinType`), tinTypeEnum.enumValues, "SSN"),
+    legalStructure: trimmedOrNull(formData.get(`${prefix}LegalStructure`)),
+    dateOfBirth: trimmedOrNull(formData.get(`${prefix}DateOfBirth`)),
+    alternateTaxInfo: trimmedOrNull(formData.get(`${prefix}AlternateTaxInfo`)),
+    deliveryByPrint: formData.get(`${prefix}DeliveryByPrint`) === "1",
+    deliveryByEmail: formData.get(`${prefix}DeliveryByEmail`) === "1",
+    deliveryBySms: formData.get(`${prefix}DeliveryBySms`) === "1",
+    sendTaxReporting: formData.get(`${prefix}SendTaxReporting`) === "1",
+    sendLateNotices: formData.get(`${prefix}SendLateNotices`) === "1",
+    sendPaymentReceipts: formData.get(`${prefix}SendPaymentReceipts`) === "1",
+    sendPaymentStatements: formData.get(`${prefix}SendPaymentStatements`) === "1",
+  };
+}
+
+function readPersonInsertValues(person: PersonInput) {
+  return {
+    partyType: person.partyType,
+    displayName: person.displayName,
+    firstName: person.firstName,
+    lastName: person.lastName,
+    middleInitial: person.middleInitial,
+    salutation: person.salutation,
+    companyName: person.companyName,
+    email: person.email,
+    emailFormat: person.emailFormat,
+    phoneHome: person.phoneHome,
+    phoneWork: person.phoneWork,
+    phoneMobile: person.phoneMobile,
+    phoneFax: person.phoneFax,
+    mailingAddressLine1: person.mailingAddressLine1,
+    mailingAddressLine2: person.mailingAddressLine2,
+    mailingCity: person.mailingCity,
+    mailingState: person.mailingState,
+    mailingZip: person.mailingZip,
+    mailingCountry: person.mailingCountry,
+    tinType: person.tinType,
+    legalStructure: person.legalStructure,
+    dateOfBirth: person.dateOfBirth,
+    alternateTaxInfo: person.alternateTaxInfo,
+    deliveryByPrint: person.deliveryByPrint,
+    deliveryByEmail: person.deliveryByEmail,
+    deliveryBySms: person.deliveryBySms,
+    sendTaxReporting: person.sendTaxReporting,
+    sendLateNotices: person.sendLateNotices,
+    sendPaymentReceipts: person.sendPaymentReceipts,
+    sendPaymentStatements: person.sendPaymentStatements,
+    ...(person.taxId ? { taxIdEncrypted: encryptPII(person.taxId), taxIdLast4: person.taxId.slice(-4) } : {}),
   };
 }
 
@@ -84,6 +165,71 @@ export async function createLandContractAction(
   if (hasCoBorrower && !coBorrower) {
     return { error: "Co-Borrower name is required, or remove the co-borrower." };
   }
+
+  const lenderMode = formData.get("lenderMode");
+  let lenderExistingPartyId: string | null = null;
+  let newLender: {
+    partyType: "INDIVIDUAL" | "BUSINESS";
+    displayName: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    phone: string | null;
+    mailingAddressLine1: string | null;
+    mailingCity: string | null;
+    mailingState: string | null;
+    mailingZip: string | null;
+    portalPin: string | null;
+    preferredPaymentMethod: "CHECK" | "ACH" | null;
+    taxId: string | null;
+    achBankName: string | null;
+    achRoutingNumber: string | null;
+    achAccountNumber: string | null;
+  } | null = null;
+
+  if (lenderMode === "new") {
+    const lenderDisplayName = trimmedOrNull(formData.get("lenderDisplayName"));
+    if (!lenderDisplayName) return { error: "Lender name is required." };
+    const lenderPartyType = enumOrDefault(formData.get("lenderNewPartyType"), partyTypeEnum.enumValues, "BUSINESS");
+    const preferredPaymentMethodRaw = formData.get("lenderPreferredPaymentMethod");
+    newLender = {
+      partyType: lenderPartyType,
+      displayName: lenderDisplayName,
+      firstName: lenderPartyType === "INDIVIDUAL" ? trimmedOrNull(formData.get("lenderFirstName")) : null,
+      lastName: lenderPartyType === "INDIVIDUAL" ? trimmedOrNull(formData.get("lenderLastName")) : null,
+      email: trimmedOrNull(formData.get("lenderEmail")),
+      phone: trimmedOrNull(formData.get("lenderPhone")),
+      mailingAddressLine1: trimmedOrNull(formData.get("lenderMailingAddressLine1")),
+      mailingCity: trimmedOrNull(formData.get("lenderMailingCity")),
+      mailingState: trimmedOrNull(formData.get("lenderMailingState")),
+      mailingZip: trimmedOrNull(formData.get("lenderMailingZip")),
+      portalPin: trimmedOrNull(formData.get("lenderPortalPin")),
+      preferredPaymentMethod:
+        preferredPaymentMethodRaw === "CHECK" || preferredPaymentMethodRaw === "ACH" ? preferredPaymentMethodRaw : null,
+      taxId: trimmedOrNull(formData.get("lenderTaxId")),
+      achBankName: trimmedOrNull(formData.get("lenderAchBankName")),
+      achRoutingNumber: trimmedOrNull(formData.get("lenderAchRoutingNumber")),
+      achAccountNumber: trimmedOrNull(formData.get("lenderAchAccountNumber")),
+    };
+  } else {
+    lenderExistingPartyId = trimmedOrNull(formData.get("lenderExistingPartyId"));
+    if (!lenderExistingPartyId) return { error: "Select a lender, or switch to New Lender." };
+  }
+
+  const lenderFundedAmountCents = dollarsToCents(formData.get("lenderFundedAmount"));
+  if (lenderFundedAmountCents === null || lenderFundedAmountCents <= 0) return { error: "Enter a valid Funded Amount for the lender." };
+  const lenderOwnershipPercent = Number(formData.get("lenderOwnershipPercent"));
+  if (!Number.isFinite(lenderOwnershipPercent) || lenderOwnershipPercent <= 0 || lenderOwnershipPercent > 100) {
+    return { error: "Enter a valid lender Ownership percent (greater than 0, up to 100)." };
+  }
+  const lenderInterestRate = Number(formData.get("lenderInterestRate"));
+  if (!Number.isFinite(lenderInterestRate) || lenderInterestRate < 0 || lenderInterestRate > 100) {
+    return { error: "Enter a valid lender Interest Rate." };
+  }
+  const lenderFundingDate = trimmedOrNull(formData.get("lenderFundingDate"));
+  if (!lenderFundingDate) return { error: "Lender Funding Date is required." };
+  const lenderServicingFeeDollars = trimmedOrNull(formData.get("lenderServicingFee"));
+  const lenderServicingFeeCents = lenderServicingFeeDollars ? dollarsToCents(formData.get("lenderServicingFee")) : null;
 
   const streetAddress = trimmedOrNull(formData.get("streetAddress"));
   const city = trimmedOrNull(formData.get("city"));
@@ -147,38 +293,10 @@ export async function createLandContractAction(
   }
 
   const contractId = await db.transaction(async (tx) => {
-    const [borrowerParty] = await tx
-      .insert(parties)
-      .values({
-        partyType: borrower.partyType,
-        displayName: borrower.displayName,
-        firstName: borrower.firstName,
-        lastName: borrower.lastName,
-        middleInitial: borrower.middleInitial,
-        salutation: borrower.salutation,
-        companyName: borrower.companyName,
-        email: borrower.email,
-        phone: borrower.phone,
-      })
-      .returning({ id: parties.id });
+    const [borrowerParty] = await tx.insert(parties).values(readPersonInsertValues(borrower)).returning({ id: parties.id });
 
     const coBorrowerParty = coBorrower
-      ? (
-          await tx
-            .insert(parties)
-            .values({
-              partyType: coBorrower.partyType,
-              displayName: coBorrower.displayName,
-              firstName: coBorrower.firstName,
-              lastName: coBorrower.lastName,
-              middleInitial: coBorrower.middleInitial,
-              salutation: coBorrower.salutation,
-              companyName: coBorrower.companyName,
-              email: coBorrower.email,
-              phone: coBorrower.phone,
-            })
-            .returning({ id: parties.id })
-        )[0]
+      ? (await tx.insert(parties).values(readPersonInsertValues(coBorrower)).returning({ id: parties.id }))[0]
       : null;
 
     const [property] = await tx
@@ -230,6 +348,52 @@ export async function createLandContractAction(
     if (coBorrowerParty) {
       await tx.insert(contractParties).values({ contractId: contract.id, partyId: coBorrowerParty.id, role: "CO_BUYER" });
     }
+
+    let lenderPartyId: string;
+    if (newLender) {
+      const [lenderParty] = await tx
+        .insert(parties)
+        .values({
+          partyType: newLender.partyType,
+          displayName: newLender.displayName,
+          firstName: newLender.firstName,
+          lastName: newLender.lastName,
+          companyName: newLender.partyType === "BUSINESS" ? newLender.displayName : null,
+          email: newLender.email,
+          phone: newLender.phone,
+          mailingAddressLine1: newLender.mailingAddressLine1,
+          mailingCity: newLender.mailingCity,
+          mailingState: newLender.mailingState,
+          mailingZip: newLender.mailingZip,
+          portalPin: newLender.portalPin,
+          // Lenders earn interest income and need a 1099 — same default as
+          // the standalone Add Lender form.
+          sendTaxReporting: true,
+          preferredPaymentMethod: newLender.preferredPaymentMethod,
+          ...(newLender.taxId ? { taxIdEncrypted: encryptPII(newLender.taxId), taxIdLast4: newLender.taxId.slice(-4) } : {}),
+          achBankName: newLender.achBankName,
+          achRoutingNumber: newLender.achRoutingNumber,
+          ...(newLender.achAccountNumber
+            ? { achAccountNumberEncrypted: encryptPII(newLender.achAccountNumber), achAccountLast4: newLender.achAccountNumber.slice(-4) }
+            : {}),
+        })
+        .returning({ id: parties.id });
+      lenderPartyId = lenderParty.id;
+    } else {
+      lenderPartyId = lenderExistingPartyId!;
+    }
+
+    await tx.insert(contractParties).values({
+      contractId: contract.id,
+      partyId: lenderPartyId,
+      role: "INVESTOR_PAYEE",
+      ownershipPercent: lenderOwnershipPercent.toFixed(2),
+      brokerServicingFeeCents: lenderServicingFeeCents,
+      fundedAmountCents: lenderFundedAmountCents,
+      interestRateAnnual: lenderInterestRate.toFixed(4),
+      fundingDate: lenderFundingDate,
+      endDate: null,
+    });
 
     if (escrowRequired && projectedAnnualTaxCents !== null && projectedAnnualInsuranceCents !== null) {
       const today = new Date().toISOString().slice(0, 10);

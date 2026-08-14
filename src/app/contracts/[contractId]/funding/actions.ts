@@ -36,6 +36,14 @@ export async function addLenderFundingAction(
   if (!Number.isFinite(ownershipPercent) || ownershipPercent <= 0 || ownershipPercent > 100) {
     return { error: "Enter a valid ownership percent (greater than 0, up to 100)." };
   }
+  const servicingFeeDollars = formData.get("servicingFee");
+  let brokerServicingFeeCents: number | null = null;
+  if (typeof servicingFeeDollars === "string" && servicingFeeDollars.trim()) {
+    brokerServicingFeeCents = Math.round(Number(servicingFeeDollars) * 100);
+    if (!Number.isFinite(brokerServicingFeeCents) || brokerServicingFeeCents < 0) {
+      return { error: "Enter a valid servicing fee." };
+    }
+  }
 
   let lenderPartyId: string;
   if (lenderMode === "new") {
@@ -68,6 +76,7 @@ export async function addLenderFundingAction(
       interestRateAnnual: rate.toFixed(4),
       fundingDate,
       ownershipPercent: ownershipPercent.toFixed(2),
+      brokerServicingFeeCents,
     });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to record funding." };
@@ -106,12 +115,21 @@ export async function updateLenderFundingAction(
   if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
     return { error: "Enter a valid interest rate." };
   }
+  const servicingFeeDollars = formData.get("servicingFee");
+  let brokerServicingFeeCents: number | null = null;
+  if (typeof servicingFeeDollars === "string" && servicingFeeDollars.trim()) {
+    brokerServicingFeeCents = Math.round(Number(servicingFeeDollars) * 100);
+    if (!Number.isFinite(brokerServicingFeeCents) || brokerServicingFeeCents < 0) {
+      return { error: "Enter a valid servicing fee." };
+    }
+  }
 
   await updateLenderFunding({
     contractPartyId,
     fundedAmountCents,
     interestRateAnnual: rate.toFixed(4),
     fundingDate,
+    brokerServicingFeeCents,
   });
 
   revalidatePath(`/contracts/${contractId}`);

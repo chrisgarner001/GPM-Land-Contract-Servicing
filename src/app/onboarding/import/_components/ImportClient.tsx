@@ -5,7 +5,13 @@ import { extractLandContractDocuments } from "../actions";
 import NewContractWizard from "../../_components/NewContractWizard";
 import type { ExtractedLandContract } from "@/server/landContractExtraction";
 
-export default function ImportClient({ suggestedContractNumber }: { suggestedContractNumber: string }) {
+export default function ImportClient({
+  suggestedContractNumber,
+  existingLenders,
+}: {
+  suggestedContractNumber: string;
+  existingLenders: { id: string; displayName: string }[];
+}) {
   const [extracting, startExtracting] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [extracted, setExtracted] = useState<ExtractedLandContract | null>(null);
@@ -29,7 +35,12 @@ export default function ImportClient({ suggestedContractNumber }: { suggestedCon
           Pulled from your documents — fields highlighted in amber weren&apos;t found and need to be filled in by hand. Review everything
           else before clicking Create Contract.
         </p>
-        <NewContractWizard suggestedContractNumber={suggestedContractNumber} initial={extracted} highlightMissing />
+        <NewContractWizard
+          suggestedContractNumber={suggestedContractNumber}
+          existingLenders={existingLenders}
+          initial={extracted}
+          highlightMissing
+        />
       </div>
     );
   }

@@ -18,6 +18,7 @@ async function getFundingHistory(contractId: string) {
       interestRateAnnual: contractParties.interestRateAnnual,
       fundingDate: contractParties.fundingDate,
       endDate: contractParties.endDate,
+      brokerServicingFeeCents: contractParties.brokerServicingFeeCents,
     })
     .from(contractParties)
     .innerJoin(parties, eq(contractParties.partyId, parties.id))
@@ -53,6 +54,7 @@ export default async function FundingPage({ params }: { params: Promise<{ contra
                 <th className="px-3 py-2">Funding Date</th>
                 <th className="px-3 py-2 text-right">Amount</th>
                 <th className="px-3 py-2 text-right">Interest Rate</th>
+                <th className="px-3 py-2 text-right">Servicing Fee</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
@@ -64,6 +66,9 @@ export default async function FundingPage({ params }: { params: Promise<{ contra
                   <td className="px-3 py-2 text-slate-600">{formatDate(h.fundingDate)}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-slate-700">{formatCents(h.fundedAmountCents)}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-slate-700">{formatPercent(h.interestRateAnnual)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                    {h.brokerServicingFeeCents !== null ? formatCents(h.brokerServicingFeeCents) : "—"}
+                  </td>
                   <td className="px-3 py-2 text-right">
                     <EditLenderFundingModal
                       contractId={contractId}
@@ -71,6 +76,7 @@ export default async function FundingPage({ params }: { params: Promise<{ contra
                       fundedAmountCents={h.fundedAmountCents}
                       interestRateAnnual={h.interestRateAnnual}
                       fundingDate={h.fundingDate}
+                      brokerServicingFeeCents={h.brokerServicingFeeCents}
                     />
                   </td>
                 </tr>

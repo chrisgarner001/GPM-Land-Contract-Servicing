@@ -15,6 +15,10 @@ export interface AddLenderFundingInput {
   // proportionally to make room, so multiple lenders can hold a genuine
   // simultaneous split.
   ownershipPercent: string;
+  // Flat dollar amount deducted from this lender's share of each payment —
+  // see contractParties.brokerServicingFeeCents. Null means "not set,"
+  // matching how the carry-forward case below already leaves it.
+  brokerServicingFeeCents: number | null;
 }
 
 // Confirmed with the business: adding a new funding entry at 100% supersedes
@@ -31,7 +35,8 @@ export interface AddLenderFundingInput {
 // since each existing share is scaled by the same (1 - newPercent/100)
 // factor.
 export async function addLenderFunding(input: AddLenderFundingInput): Promise<void> {
-  const { contractId, lenderPartyId, fundedAmountCents, interestRateAnnual, fundingDate, ownershipPercent } = input;
+  const { contractId, lenderPartyId, fundedAmountCents, interestRateAnnual, fundingDate, ownershipPercent, brokerServicingFeeCents } =
+    input;
 
   const newPercent = new Decimal(ownershipPercent);
   if (!newPercent.isFinite() || newPercent.lte(0) || newPercent.gt(100)) {
@@ -73,18 +78,20 @@ export async function addLenderFunding(input: AddLenderFundingInput): Promise<vo
       }
     }
 
-    // Carries the prior servicing fee forward only for a full 100% funding
-    // with exactly one prior lender — with co-investors (or a partial split)
-    // the fee split isn't well-defined from this action alone, so it's left
-    // null for staff to set explicitly.
-    const carriedServicingFeeCents = newPercent.eq(100) && activeRows.length === 1 ? activeRows[0].brokerServicingFeeCents : null;
+    // An explicit fee from the caller (staff now sets this directly when
+    // assigning funding) always wins. Only when it's left unset do we fall
+    // back to carrying the prior fee forward, and only for a full 100%
+    // funding with exactly one prior lender — with co-investors (or a
+    // partial split) the fee split isn't well-defined from this action alone.
+    const resolvedServicingFeeCents =
+      brokerServicingFeeCents ?? (newPercent.eq(100) && activeRows.length === 1 ? activeRows[0].brokerServicingFeeCents : null);
 
     await tx.insert(contractParties).values({
       contractId,
       partyId: lenderPartyId,
       role: "INVESTOR_PAYEE",
       ownershipPercent: newPercent.toString(),
-      brokerServicingFeeCents: carriedServicingFeeCents,
+      brokerServicingFeeCents: resolvedServicingFeeCents,
       fundedAmountCents,
       interestRateAnnual,
       fundingDate,
@@ -98,6 +105,7 @@ export interface UpdateLenderFundingInput {
   fundedAmountCents: number;
   interestRateAnnual: string;
   fundingDate: string;
+  brokerServicingFeeCents: number | null;
 }
 
 // Corrects/backfills the funded amount, rate, and date on an EXISTING
@@ -108,10 +116,10 @@ export interface UpdateLenderFundingInput {
 // previously no way to enter them for a contract's current lender without
 // it looking like a brand-new funding event happened today.
 export async function updateLenderFunding(input: UpdateLenderFundingInput): Promise<void> {
-  const { contractPartyId, fundedAmountCents, interestRateAnnual, fundingDate } = input;
+  const { contractPartyId, fundedAmountCents, interestRateAnnual, fundingDate, brokerServicingFeeCents } = input;
   await db
     .update(contractParties)
-    .set({ fundedAmountCents, interestRateAnnual, fundingDate })
+    .set({ fundedAmountCents, interestRateAnnual, fundingDate, brokerServicingFeeCents })
     .where(eq(contractParties.id, contractPartyId));
 }
 

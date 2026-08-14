@@ -3,10 +3,11 @@
 import { useActionState, useRef, useState } from "react";
 import { createLandContractAction, type CreateLandContractState } from "../manual/actions";
 import StepBorrowers from "./StepBorrowers";
+import StepLender from "./StepLender";
 import StepProperty from "./StepProperty";
 import StepContractAndEscrow from "./StepContractAndEscrow";
 
-const STEPS = ["Borrower & Co-Borrower", "Property", "Land Contract & Escrow"] as const;
+const STEPS = ["Borrower & Co-Borrower", "Lender", "Property", "Land Contract & Escrow"] as const;
 
 // Every field the wizard can pre-fill — shared by manual entry (nothing
 // passed, everything blank) and the Import flow (extracted values passed
@@ -68,10 +69,12 @@ export interface LandContractInitialValues {
 
 export default function NewContractWizard({
   suggestedContractNumber,
+  existingLenders,
   initial,
   highlightMissing,
 }: {
   suggestedContractNumber: string;
+  existingLenders: { id: string; displayName: string }[];
   initial?: LandContractInitialValues;
   // True only for the Import flow — manual entry's blank fields are just
   // blank, not "missing"; extracted data that came back empty genuinely
@@ -87,7 +90,8 @@ export default function NewContractWizard({
   const step1Ref = useRef<HTMLFieldSetElement>(null);
   const step2Ref = useRef<HTMLFieldSetElement>(null);
   const step3Ref = useRef<HTMLFieldSetElement>(null);
-  const refs = [step1Ref, step2Ref, step3Ref];
+  const step4Ref = useRef<HTMLFieldSetElement>(null);
+  const refs = [step1Ref, step2Ref, step3Ref, step4Ref];
 
   function goNext() {
     const currentRef = refs[step - 1];
@@ -95,14 +99,14 @@ export default function NewContractWizard({
       currentRef.current.reportValidity();
       return;
     }
-    setStep((s) => Math.min(3, s + 1));
+    setStep((s) => Math.min(STEPS.length, s + 1));
   }
 
   function goBack() {
     setStep((s) => Math.max(1, s - 1));
   }
 
-  // The form stays mounted across all 3 steps (only visibility toggles) so
+  // The form stays mounted across all 4 steps (only visibility toggles) so
   // nothing is lost moving Back/Next — but that means the browser's own
   // submit-time validation would try to validate/focus fields on hidden
   // steps too, which it can't do reliably. noValidate defers ALL validation
@@ -142,9 +146,12 @@ export default function NewContractWizard({
         <StepBorrowers initial={initial} highlightMissing={highlightMissing} />
       </fieldset>
       <fieldset ref={step2Ref} className={step === 2 ? "" : "hidden"}>
-        <StepProperty initial={initial} highlightMissing={highlightMissing} />
+        <StepLender existingLenders={existingLenders} />
       </fieldset>
       <fieldset ref={step3Ref} className={step === 3 ? "" : "hidden"}>
+        <StepProperty initial={initial} highlightMissing={highlightMissing} />
+      </fieldset>
+      <fieldset ref={step4Ref} className={step === 4 ? "" : "hidden"}>
         <StepContractAndEscrow suggestedContractNumber={suggestedContractNumber} initial={initial} highlightMissing={highlightMissing} />
       </fieldset>
 
@@ -159,7 +166,7 @@ export default function NewContractWizard({
         >
           Back
         </button>
-        {step < 3 ? (
+        {step < STEPS.length ? (
           <button
             type="button"
             onClick={goNext}
