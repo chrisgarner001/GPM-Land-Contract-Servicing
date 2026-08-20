@@ -35,6 +35,13 @@ export async function getLandContractPackage(id: string) {
   return row ?? null;
 }
 
+// Only ever called for a DRAFT row — a PUBLISHED package already has files
+// uploaded to Drive and, per the module comment above, may already be tied
+// to a real onboarded contract; it isn't removable from here.
+export async function deleteLandContractPackage(id: string): Promise<void> {
+  await db.delete(landContractPackages).where(eq(landContractPackages.id, id));
+}
+
 export async function createLandContractPackage(createdBy: string | null): Promise<string> {
   const [row] = await db
     .insert(landContractPackages)

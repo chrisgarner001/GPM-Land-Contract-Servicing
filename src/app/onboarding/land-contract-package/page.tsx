@@ -3,6 +3,7 @@ import { FileSignature } from "lucide-react";
 import { listLandContractPackages } from "@/server/landContractPackages";
 import { formatDateTime } from "@/lib/format";
 import { createPackageAction } from "./actions";
+import DeletePackageButton from "./_components/DeletePackageButton";
 
 export default async function LandContractPackageListPage() {
   const packages = await listLandContractPackages();
@@ -37,12 +38,13 @@ export default async function LandContractPackageListPage() {
               <th className="px-4 py-3">Property</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Last Updated</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {packages.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
                   No packages started yet — click New Package to begin one.
                 </td>
               </tr>
@@ -67,6 +69,7 @@ export default async function LandContractPackageListPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-400">{formatDateTime(p.updatedAt)}</td>
+                  <td className="px-4 py-3 text-right">{p.status === "DRAFT" && <DeletePackageButton packageId={p.id} />}</td>
                 </tr>
               ))
             )}
