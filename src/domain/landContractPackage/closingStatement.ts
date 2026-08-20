@@ -152,6 +152,41 @@ export function calculateEscrowReserveAmount(input: EscrowReserveInput): number 
   return round2((accrualGapMonths + input.cushionMonths) * monthly);
 }
 
+// ---------- Prepaid interest helper ----------
+
+function daysBetween(a: Date, b: Date): number {
+  const MS_PER_DAY = 1000 * 60 * 60 * 24;
+  return Math.round((b.getTime() - a.getTime()) / MS_PER_DAY);
+}
+
+/** The same calendar day one month earlier, clamped to the target month's last day. */
+function oneCalendarMonthBefore(iso: string): Date {
+  const d = new Date(iso);
+  const targetMonthIndex = d.getUTCMonth() - 1;
+  const daysInTargetMonth = new Date(Date.UTC(d.getUTCFullYear(), targetMonthIndex + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(d.getUTCFullYear(), targetMonthIndex, Math.min(d.getUTCDate(), daysInTargetMonth)));
+}
+
+/**
+ * Per-diem interest collected at closing on the financed amount. The first
+ * scheduled payment's interest portion covers the calendar month ending at
+ * firstPaymentDate (one month back from it) — so the days from closing
+ * through the day before that covered month starts aren't charged by any
+ * regular payment, and have to be collected up front. Uses the same 365-day
+ * convention as the rest of this app's interest math (see money.ts).
+ */
+export function calculatePrepaidInterest(input: {
+  financedAmount: number;
+  annualRatePercent: number;
+  closingDate: string;
+  firstPaymentDate: string;
+}): number {
+  const coverageStart = oneCalendarMonthBefore(input.firstPaymentDate);
+  const days = Math.max(0, daysBetween(new Date(input.closingDate), coverageStart));
+  const dailyRate = input.annualRatePercent / 100 / 365;
+  return round2(input.financedAmount * dailyRate * days);
+}
+
 export function calculateReimbursementLine(r: ReimbursementInput): LineItem {
   if (r.paidBy === "seller") {
     // Seller paid a buyer-side cost already -> buyer owes it (Buyer Debit),

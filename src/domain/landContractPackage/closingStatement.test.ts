@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildClosingStatement, calculateEscrowReserveAmount, calculateReimbursementLine, monthlyEscrowAmount } from "./closingStatement";
+import {
+  buildClosingStatement,
+  calculateEscrowReserveAmount,
+  calculatePrepaidInterest,
+  calculateReimbursementLine,
+  monthlyEscrowAmount,
+} from "./closingStatement";
 
 describe("buildClosingStatement", () => {
   // Matches a real closing this engine was validated against — figures below
@@ -130,6 +136,41 @@ describe("calculateEscrowReserveAmount", () => {
       cushionMonths: 2,
     });
     expect(amount).toBe(2 * monthlyEscrowAmount(1200));
+  });
+});
+
+describe("calculatePrepaidInterest", () => {
+  it("charges per-diem interest for the days between closing and the start of the month the first payment covers", () => {
+    // Closing Aug 20; first payment Oct 1 -> covered month is September, so
+    // the gap is Aug 20 through Aug 31 = 12 days.
+    const amount = calculatePrepaidInterest({
+      financedAmount: 70000,
+      annualRatePercent: 10,
+      closingDate: "2026-08-20",
+      firstPaymentDate: "2026-10-01",
+    });
+    const dailyInterest = (70000 * 0.1) / 365;
+    expect(amount).toBeCloseTo(dailyInterest * 12, 2);
+  });
+
+  it("is zero when closing lands exactly on the covered month's start date", () => {
+    const amount = calculatePrepaidInterest({
+      financedAmount: 70000,
+      annualRatePercent: 10,
+      closingDate: "2026-09-01",
+      firstPaymentDate: "2026-10-01",
+    });
+    expect(amount).toBe(0);
+  });
+
+  it("never goes negative when closing is after the covered month would have started", () => {
+    const amount = calculatePrepaidInterest({
+      financedAmount: 70000,
+      annualRatePercent: 10,
+      closingDate: "2026-09-15",
+      firstPaymentDate: "2026-10-01",
+    });
+    expect(amount).toBe(0);
   });
 });
 

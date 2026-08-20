@@ -53,7 +53,11 @@ export function buildDefaultAnswers(): Answers {
     municipality_type: "City",
     municipality_name: "",
 
-    // Financial terms
+    // Financial terms. original_principal, monthly_pi_payment, and
+    // monthly_escrow_payment are computed client-side in PackageForm.tsx
+    // (purchase_price - down_payment; standard amortization; annual
+    // tax/insurance bills / 12) and submitted as locked, read-only fields —
+    // never hand-typed.
     purchase_price: "",
     down_payment: "",
     original_principal: "",
@@ -101,7 +105,6 @@ export function buildDefaultAnswers(): Answers {
     listing_broker_name: "",
     listing_broker_commission: "",
     loan_origination_fee: "",
-    annual_insurance_premium: "",
     prepaid_interest: "",
     city_taxes_paid_by_seller: "",
     county_taxes_paid_by_seller: "",

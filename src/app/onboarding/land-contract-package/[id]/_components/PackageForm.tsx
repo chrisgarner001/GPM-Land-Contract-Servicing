@@ -2,7 +2,8 @@
 
 import { useActionState, useMemo, useState } from "react";
 import type { Answers } from "@/domain/landContractPackage/answers";
-import { calculateEscrowReserveAmount, monthlyEscrowAmount } from "@/domain/landContractPackage/closingStatement";
+import { calculateEscrowReserveAmount, calculatePrepaidInterest, monthlyEscrowAmount } from "@/domain/landContractPackage/closingStatement";
+import { computeMonthlyPaymentCents } from "@/domain/amortization/generateSchedule";
 import { submitPackageAction, assessorLookupAction, type SubmitPackageState } from "../actions";
 
 const inputClass = "w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none";
@@ -46,6 +47,61 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
       {children}
+    </div>
+  );
+}
+
+// A value derived entirely from other fields — always shown read-only and
+// submitted via a paired hidden input, never hand-typed.
+function ComputedField({ name, label, value, hint }: { name: string; label: string; value: string; hint?: string }) {
+  return (
+    <div>
+      <label className={labelClass}>{label}</label>
+      <input value={value} disabled className={`${inputClass} bg-slate-50 text-slate-500`} />
+      <input type="hidden" name={name} value={value} />
+      {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
+    </div>
+  );
+}
+
+// Pre-fills at percent% of basis (e.g. a 3% commission) but stays fully
+// editable — once staff types their own number it stops following the
+// default. An existing saved value (editing a draft) is treated as already
+// touched, so reloading never silently overwrites a figure someone chose.
+function SmartDefaultField({
+  name,
+  label,
+  basis,
+  percent,
+  initialValue,
+}: {
+  name: string;
+  label: string;
+  basis: number;
+  percent: number;
+  initialValue: string;
+}) {
+  const [touched, setTouched] = useState(Boolean(initialValue));
+  const [manualValue, setManualValue] = useState(initialValue);
+  const computedValue = basis > 0 ? (basis * (percent / 100)).toFixed(2) : "";
+  const value = touched ? manualValue : computedValue;
+  return (
+    <div>
+      <label className={labelClass} htmlFor={name}>
+        {label} ({percent}% default)
+      </label>
+      <input
+        id={name}
+        name={name}
+        type="number"
+        step="0.01"
+        value={value}
+        onChange={(e) => {
+          setTouched(true);
+          setManualValue(e.target.value);
+        }}
+        className={inputClass}
+      />
     </div>
   );
 }
@@ -153,18 +209,38 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupOwner, setLookupOwner] = useState<string | null>(null);
   const [firstPaymentDate, setFirstPaymentDate] = useState(initialAnswers.first_payment_date ?? "");
+  const [closingDate, setClosingDate] = useState(initialAnswers.closing_date ?? "");
   const [escrowCushionMonths, setEscrowCushionMonths] = useState(initialAnswers.escrow_cushion_months || "2");
   const [propertyTaxAnnualAmount, setPropertyTaxAnnualAmount] = useState(initialAnswers.property_tax_annual_amount ?? "");
   const [propertyTaxPeriodStart, setPropertyTaxPeriodStart] = useState(initialAnswers.property_tax_period_start ?? "");
   const [insuranceAnnualAmount, setInsuranceAnnualAmount] = useState(initialAnswers.insurance_annual_amount ?? "");
   const [cityTaxAnnualAmount, setCityTaxAnnualAmount] = useState(initialAnswers.city_property_tax_annual_amount ?? "");
   const [cityTaxPeriodStart, setCityTaxPeriodStart] = useState(initialAnswers.city_property_tax_period_start ?? "");
+  const [purchasePrice, setPurchasePrice] = useState(initialAnswers.purchase_price ?? "");
+  const [downPayment, setDownPayment] = useState(initialAnswers.down_payment ?? "");
+  const [interestRate, setInterestRate] = useState(initialAnswers.interest_rate ?? "");
+  const [amortizationMonths, setAmortizationMonths] = useState(initialAnswers.amortization_months ?? "360");
 
   const cushionMonthsNumber = Number(escrowCushionMonths) || 2;
   const computedMonthlyEscrow =
     monthlyEscrowAmount(Number(propertyTaxAnnualAmount) || 0) +
     monthlyEscrowAmount(Number(insuranceAnnualAmount) || 0) +
     monthlyEscrowAmount(Number(cityTaxAnnualAmount) || 0);
+
+  const purchasePriceNumber = Number(purchasePrice) || 0;
+  const interestRateNumber = Number(interestRate) || 0;
+  const amortizationMonthsNumber = Number(amortizationMonths) || 0;
+  const computedOriginalPrincipal = Math.max(0, purchasePriceNumber - (Number(downPayment) || 0));
+  const computedMonthlyPI =
+    amortizationMonthsNumber > 0
+      ? computeMonthlyPaymentCents(Math.round(computedOriginalPrincipal * 100), interestRateNumber, amortizationMonthsNumber) / 100
+      : 0;
+  const computedPrepaidInterest = calculatePrepaidInterest({
+    financedAmount: computedOriginalPrincipal,
+    annualRatePercent: interestRateNumber,
+    closingDate: closingDate || new Date().toISOString().slice(0, 10),
+    firstPaymentDate: firstPaymentDate || new Date().toISOString().slice(0, 10),
+  });
 
   async function handleAssessorLookup() {
     setLookupError(null);
@@ -358,18 +434,67 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
 
       <Card title="Financial Terms">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field name="purchase_price" label="Purchase Price ($)" defaultValue={initialAnswers.purchase_price} type="number" required />
-          <Field name="down_payment" label="Down Payment ($)" defaultValue={initialAnswers.down_payment} type="number" />
-          <Field name="original_principal" label="Amount Financed / Principal ($)" defaultValue={initialAnswers.original_principal} type="number" />
-          <Field name="interest_rate" label="Interest Rate (%)" defaultValue={initialAnswers.interest_rate} type="number" />
-          <Field name="default_interest_rate" label="Default Interest Rate (%)" defaultValue={initialAnswers.default_interest_rate} type="number" />
-          <Field name="monthly_pi_payment" label="Monthly P&amp;I Payment ($)" defaultValue={initialAnswers.monthly_pi_payment} type="number" />
           <div>
-            <label className={labelClass}>Monthly Tax/Insurance Escrow ($)</label>
-            <input value={computedMonthlyEscrow.toFixed(2)} disabled className={`${inputClass} bg-slate-50 text-slate-500`} />
-            <input type="hidden" name="monthly_escrow_payment" value={computedMonthlyEscrow.toFixed(2)} />
-            <p className="mt-1 text-xs text-slate-400">Computed from the annual tax/insurance bills below.</p>
+            <label className={labelClass} htmlFor="purchase_price">
+              Purchase Price ($) <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="purchase_price"
+              name="purchase_price"
+              type="number"
+              step="0.01"
+              value={purchasePrice}
+              onChange={(e) => setPurchasePrice(e.target.value)}
+              className={inputClass}
+            />
           </div>
+          <div>
+            <label className={labelClass} htmlFor="down_payment">
+              Down Payment ($)
+            </label>
+            <input
+              id="down_payment"
+              name="down_payment"
+              type="number"
+              step="0.01"
+              value={downPayment}
+              onChange={(e) => setDownPayment(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <ComputedField
+            name="original_principal"
+            label="Amount Financed / Principal ($)"
+            value={computedOriginalPrincipal.toFixed(2)}
+            hint="Purchase price − down payment."
+          />
+          <div>
+            <label className={labelClass} htmlFor="interest_rate">
+              Interest Rate (%)
+            </label>
+            <input
+              id="interest_rate"
+              name="interest_rate"
+              type="number"
+              step="0.01"
+              value={interestRate}
+              onChange={(e) => setInterestRate(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <Field name="default_interest_rate" label="Default Interest Rate (%)" defaultValue={initialAnswers.default_interest_rate} type="number" />
+          <ComputedField
+            name="monthly_pi_payment"
+            label="Monthly P&I Payment ($)"
+            value={computedMonthlyPI.toFixed(2)}
+            hint="Standard amortization on the financed amount, rate, and term below."
+          />
+          <ComputedField
+            name="monthly_escrow_payment"
+            label="Monthly Tax/Insurance Escrow ($)"
+            value={computedMonthlyEscrow.toFixed(2)}
+            hint="Computed from the annual tax/insurance bills below."
+          />
           <div>
             <label className={labelClass} htmlFor="first_payment_date">
               First Payment Date
@@ -383,7 +508,19 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
               className={inputClass}
             />
           </div>
-          <Field name="amortization_months" label="Amortization (months)" defaultValue={initialAnswers.amortization_months} type="number" />
+          <div>
+            <label className={labelClass} htmlFor="amortization_months">
+              Amortization (months)
+            </label>
+            <input
+              id="amortization_months"
+              name="amortization_months"
+              type="number"
+              value={amortizationMonths}
+              onChange={(e) => setAmortizationMonths(e.target.value)}
+              className={inputClass}
+            />
+          </div>
           <Field name="balloon_date" label="Balloon / Payoff-By Date" defaultValue={initialAnswers.balloon_date} type="date" />
           <Field name="late_fee_amount" label="Late Fee ($)" defaultValue={initialAnswers.late_fee_amount} type="number" />
           <Field name="late_fee_grace_day" label="Late Fee Due-By Day of Month" defaultValue={initialAnswers.late_fee_grace_day} type="number" />
@@ -393,7 +530,19 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
 
       <Card title="Closing Details">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field name="closing_date" label="Closing Date" defaultValue={initialAnswers.closing_date} type="date" required />
+          <div>
+            <label className={labelClass} htmlFor="closing_date">
+              Closing Date <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="closing_date"
+              name="closing_date"
+              type="date"
+              value={closingDate}
+              onChange={(e) => setClosingDate(e.target.value)}
+              className={inputClass}
+            />
+          </div>
           <Field name="note_notary_date" label="Note Notary Date" defaultValue={initialAnswers.note_notary_date} type="date" />
           <Field name="signing_city" label="Signing City" defaultValue={initialAnswers.signing_city} />
           <Field name="notary_county" label="Notary County" defaultValue={initialAnswers.notary_county} />
@@ -471,12 +620,34 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
         <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Commissions &amp; Fees</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field name="buyer_broker_name" label="Buyer's Broker (if any)" defaultValue={initialAnswers.buyer_broker_name} />
-          <Field name="buyer_broker_commission" label="Buyer Broker Commission ($)" defaultValue={initialAnswers.buyer_broker_commission} type="number" />
+          <SmartDefaultField
+            name="buyer_broker_commission"
+            label="Buyer Broker Commission ($)"
+            basis={purchasePriceNumber}
+            percent={3}
+            initialValue={initialAnswers.buyer_broker_commission}
+          />
           <Field name="listing_broker_name" label="Listing Broker (if any)" defaultValue={initialAnswers.listing_broker_name} />
-          <Field name="listing_broker_commission" label="Listing Broker Commission ($)" defaultValue={initialAnswers.listing_broker_commission} type="number" />
-          <Field name="loan_origination_fee" label="Loan Origination Fee ($)" defaultValue={initialAnswers.loan_origination_fee} type="number" />
-          <Field name="annual_insurance_premium" label="Annual Insurance Premium ($)" defaultValue={initialAnswers.annual_insurance_premium} type="number" />
-          <Field name="prepaid_interest" label="Prepaid Interest ($)" defaultValue={initialAnswers.prepaid_interest} type="number" />
+          <SmartDefaultField
+            name="listing_broker_commission"
+            label="Listing Broker Commission ($)"
+            basis={purchasePriceNumber}
+            percent={3}
+            initialValue={initialAnswers.listing_broker_commission}
+          />
+          <SmartDefaultField
+            name="loan_origination_fee"
+            label="Loan Origination Fee ($)"
+            basis={purchasePriceNumber}
+            percent={2.5}
+            initialValue={initialAnswers.loan_origination_fee}
+          />
+          <ComputedField
+            name="prepaid_interest"
+            label="Prepaid Interest ($)"
+            value={computedPrepaidInterest.toFixed(2)}
+            hint="Per-diem interest on the financed amount from closing to the first covered payment period."
+          />
           <Field name="city_taxes_paid_by_seller" label="City Taxes Paid By Seller ($)" defaultValue={initialAnswers.city_taxes_paid_by_seller} type="number" />
           <Field name="county_taxes_paid_by_seller" label="County Taxes Paid By Seller ($)" defaultValue={initialAnswers.county_taxes_paid_by_seller} type="number" />
         </div>

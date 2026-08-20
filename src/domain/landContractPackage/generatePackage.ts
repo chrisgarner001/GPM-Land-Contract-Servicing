@@ -60,7 +60,7 @@ async function renderClosingStatement(a: Answers): Promise<Buffer> {
   sheet.getCell("A20").value = dollars(a.buyer_broker_commission);
   sheet.getCell("A21").value = dollars(a.listing_broker_commission);
   sheet.getCell("D24").value = dollars(a.loan_origination_fee);
-  sheet.getCell("D25").value = dollars(a.annual_insurance_premium);
+  sheet.getCell("D25").value = lineFor("Homeowner's Insurance Premium (12 Months)")?.buyerDebit ?? 0;
   sheet.getCell("D26").value = dollars(a.prepaid_interest);
   sheet.getCell("D28").value = dollars(a.city_taxes_paid_by_seller);
   sheet.getCell("D29").value = dollars(a.county_taxes_paid_by_seller);

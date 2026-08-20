@@ -167,8 +167,10 @@ export function buildClosingStatementInput(a: Answers): ClosingStatementInput {
     buildEscrowReserveFee(a, "city_property_tax", "City Property Tax", true),
   ].filter((f): f is SimpleFee => f !== null);
   if (dollars(a.loan_origination_fee)) buyerFees.push({ description: "Loan Origination Fee: Success", amount: dollars(a.loan_origination_fee) });
-  if (dollars(a.annual_insurance_premium)) {
-    buyerFees.push({ description: "Homeowner's Insurance Premium (12 Months)", amount: dollars(a.annual_insurance_premium) });
+  // Same bill the escrow reserve above is funding, not a separately-entered
+  // amount — the buyer pays this year's premium in full at closing.
+  if (dollars(a.insurance_annual_amount)) {
+    buyerFees.push({ description: "Homeowner's Insurance Premium (12 Months)", amount: dollars(a.insurance_annual_amount) });
   }
   if (dollars(a.prepaid_interest)) buyerFees.push({ description: "Prepaid interest", amount: dollars(a.prepaid_interest) });
 
