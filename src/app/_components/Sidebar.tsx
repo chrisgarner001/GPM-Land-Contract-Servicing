@@ -16,7 +16,6 @@ import {
   Settings,
   Sparkles,
   FilePlus2,
-  ScanLine,
   UserPlus,
   Send,
   Printer,
@@ -49,10 +48,7 @@ const NAV_ITEMS: NavItem[] = [
     label: "Land Contracts",
     href: "/contracts",
     icon: FileText,
-    children: [
-      { label: "On Boarding", href: "/onboarding", icon: FilePlus2 },
-      { label: "Bulk Payment", href: "/bulk-payment", icon: ScanLine },
-    ],
+    children: [{ label: "On Boarding", href: "/onboarding", icon: FilePlus2 }],
   },
   {
     label: "Properties",
