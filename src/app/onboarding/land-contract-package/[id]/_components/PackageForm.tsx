@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 import type { Answers } from "@/domain/landContractPackage/answers";
 import { calculateEscrowReserveAmount, calculatePrepaidInterest, monthlyEscrowAmount } from "@/domain/landContractPackage/closingStatement";
 import { computeMonthlyPaymentCents } from "@/domain/amortization/generateSchedule";
 import { submitPackageAction, assessorLookupAction, type SubmitPackageState } from "../actions";
+import ClosingDisclosureSection from "./ClosingDisclosureSection";
 
 const inputClass = "w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none";
 const labelClass = "mb-1 block text-xs font-medium text-slate-600";
@@ -193,6 +194,7 @@ function EscrowReserveFields({
 export default function PackageForm({ packageId, initialAnswers }: { packageId: string; initialAnswers: Answers }) {
   const action = submitPackageAction.bind(null, packageId);
   const [state, formAction, pending] = useActionState<SubmitPackageState | undefined, FormData>(action, undefined);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [propertyStreet, setPropertyStreet] = useState(initialAnswers.property_street ?? "");
   const [propertyCity, setPropertyCity] = useState(initialAnswers.property_city ?? "");
@@ -270,7 +272,7 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
   }
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} ref={formRef} className="space-y-4">
       <Card title="Buyer">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field name="buyer_name" label="Buyer Full Name" defaultValue={initialAnswers.buyer_name} required />
@@ -304,6 +306,8 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
           <Field name="account_number" label="Land Contract Account Number" defaultValue={initialAnswers.account_number} />
         </div>
       </Card>
+
+      <ClosingDisclosureSection initialAnswers={initialAnswers} formRef={formRef} />
 
       <Card title="Lender / Loan Originator">
         <p className="mb-2 text-xs text-slate-400">

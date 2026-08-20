@@ -221,6 +221,13 @@ export async function generateAllFiles(a: Answers): Promise<GeneratedFile[]> {
   files.push({ filename: `${prefix}-PRE-Affidavit.pdf`, buffer: await renderPre(a) });
   files.push({ filename: `${prefix}-Property-Transfer-Affidavit.pdf`, buffer: await renderPta(a) });
 
+  // Staff's own Buyer Closing Disclosure, uploaded for cross-referencing —
+  // archived here too so it lives alongside the rest of the package's
+  // documents instead of only existing in the answers blob.
+  if (a.buyer_cd_base64) {
+    files.push({ filename: `${prefix}-Buyer-Closing-Disclosure.pdf`, buffer: Buffer.from(a.buyer_cd_base64, "base64") });
+  }
+
   return files;
 }
 

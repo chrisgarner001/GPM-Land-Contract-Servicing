@@ -21,6 +21,17 @@ export function buildDefaultAnswers(): Answers {
     seller_name: "",
     seller_address: "",
     seller_signatory_name: "",
+
+    // Staff produce this in their own software and must send it to the
+    // buyer 5 days before closing. Uploaded here as a base64 string (see
+    // PackageForm.tsx) purely so it survives a Save/reload the same way
+    // every other answer does — no file-storage table exists in this app,
+    // and a Closing Disclosure is small enough that this is a reasonable
+    // trade-off. Read back for the live cross-reference comparison, and
+    // archived alongside the rest of the package's files on Publish (see
+    // generateAllFiles in generatePackage.ts).
+    buyer_cd_filename: "",
+    buyer_cd_base64: "",
     // This deployment's own servicing/lending entity — defaults from
     // Setup > Company Settings (see src/server/companySettings.ts), not
     // hardcoded, so the "Lender" identity varies per deployment/company.

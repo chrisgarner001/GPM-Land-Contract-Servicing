@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireEditAccess } from "@/lib/staffRole";
 import { saveDraft, publishPackage } from "@/server/landContractPackages";
 import { lookupPropertyByAddress } from "@/lib/assessorSearch";
+import { extractClosingDisclosureData, type ExtractedClosingDisclosure } from "@/server/closingDisclosureExtraction";
 import type { Answers } from "@/domain/landContractPackage/answers";
 
 export interface SubmitPackageState {
@@ -95,5 +96,23 @@ export async function assessorLookupAction(address: string): Promise<AssessorLoo
     };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "AssessorSearch lookup failed." };
+  }
+}
+
+export interface ClosingDisclosureCompareResult {
+  error?: string;
+  data?: ExtractedClosingDisclosure;
+}
+
+// Read-only — doesn't touch the package's saved data, so no edit-access
+// guard (matches assessorLookupAction above). The uploaded PDF itself is
+// already sitting in the form's own hidden fields; this just reads it back
+// for the live comparison table.
+export async function compareClosingDisclosureAction(base64Pdf: string): Promise<ClosingDisclosureCompareResult> {
+  try {
+    const data = await extractClosingDisclosureData(base64Pdf);
+    return { data };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed to read the Closing Disclosure. Try again." };
   }
 }
