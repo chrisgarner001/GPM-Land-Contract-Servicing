@@ -49,6 +49,56 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
+// One proration = an annual bill + the period it covers + who already paid it
+// (prepaid) or who will pay it later (arrears). The app computes the correct
+// buyer/seller split by day count and routes it to the correct ledger side —
+// see src/domain/landContractPackage/closingStatement.ts. Staff no longer
+// pre-computes the split by hand.
+function ProrationFields({
+  prefix,
+  label,
+  defaultAnnualAmount,
+  status,
+  onStatusChange,
+  party,
+  onPartyChange,
+  initialAnswers,
+}: {
+  prefix: string;
+  label: string;
+  defaultAnnualAmount: string;
+  status: string;
+  onStatusChange: (v: string) => void;
+  party: string;
+  onPartyChange: (v: string) => void;
+  initialAnswers: Answers;
+}) {
+  const isPrepaid = status === "prepaid";
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:col-span-3 sm:grid-cols-6 sm:items-end sm:border-t sm:border-slate-100 sm:pt-3">
+      <div className="sm:col-span-2">
+        <Field name={`${prefix}_annual_amount`} label={`${label} — Annual Bill ($)`} defaultValue={defaultAnnualAmount} type="number" />
+      </div>
+      <Field name={`${prefix}_period_start`} label="Bill Period Start" defaultValue={initialAnswers[`${prefix}_period_start`]} type="date" />
+      <Field name={`${prefix}_period_end`} label="Bill Period End" defaultValue={initialAnswers[`${prefix}_period_end`]} type="date" />
+      <div>
+        <label className={labelClass}>Status</label>
+        <select name={`${prefix}_status`} value={status} onChange={(e) => onStatusChange(e.target.value)} className={inputClass}>
+          <option value="arrears">Unpaid (arrears)</option>
+          <option value="prepaid">Already paid (prepaid)</option>
+        </select>
+      </div>
+      <div>
+        <label className={labelClass}>{isPrepaid ? "Already Paid By" : "Will Be Paid By"}</label>
+        <select name={`${prefix}_party`} value={party} onChange={(e) => onPartyChange(e.target.value)} className={inputClass}>
+          <option value="buyer">Buyer</option>
+          <option value="seller">Seller</option>
+        </select>
+      </div>
+    </div>
+  );
+}
+
 export default function PackageForm({ packageId, initialAnswers }: { packageId: string; initialAnswers: Answers }) {
   const action = submitPackageAction.bind(null, packageId);
   const [state, formAction, pending] = useActionState<SubmitPackageState | undefined, FormData>(action, undefined);
@@ -67,6 +117,13 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
   const [lookupPending, setLookupPending] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupOwner, setLookupOwner] = useState<string | null>(null);
+  const [propertyTaxAnnualAmount, setPropertyTaxAnnualAmount] = useState(initialAnswers.property_tax_annual_amount ?? "");
+  const [propertyTaxStatus, setPropertyTaxStatus] = useState(initialAnswers.property_tax_status || "arrears");
+  const [propertyTaxParty, setPropertyTaxParty] = useState(initialAnswers.property_tax_party || "buyer");
+  const [insuranceStatus, setInsuranceStatus] = useState(initialAnswers.insurance_status || "prepaid");
+  const [insuranceParty, setInsuranceParty] = useState(initialAnswers.insurance_party || "seller");
+  const [cityTaxStatus, setCityTaxStatus] = useState(initialAnswers.city_property_tax_status || "arrears");
+  const [cityTaxParty, setCityTaxParty] = useState(initialAnswers.city_property_tax_party || "buyer");
 
   async function handleAssessorLookup() {
     setLookupError(null);
@@ -87,6 +144,7 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
       if (result.legalDescription) setLegalDescription(result.legalDescription);
       if (result.parcelId) setParcelId(result.parcelId);
       if (result.ownerFullName) setLookupOwner(result.ownerFullName);
+      if (result.annualTax && !propertyTaxAnnualAmount) setPropertyTaxAnnualAmount(result.annualTax);
     } catch (e) {
       setLookupError(e instanceof Error ? e.message : "Lookup failed.");
     } finally {
@@ -300,9 +358,49 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
       <Card title="Closing Statement — Prorations, Commissions &amp; Fees">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field name="earnest_money_deposit" label="Earnest Money Deposit ($)" defaultValue={initialAnswers.earnest_money_deposit} type="number" />
-          <Field name="property_tax_proration" label="Property Tax Proration ($)" defaultValue={initialAnswers.property_tax_proration} type="number" />
-          <Field name="insurance_proration" label="Insurance Proration ($)" defaultValue={initialAnswers.insurance_proration} type="number" />
-          <Field name="city_property_tax_proration" label="City Property Tax Proration ($)" defaultValue={initialAnswers.city_property_tax_proration} type="number" />
+        </div>
+
+        <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Prorations</p>
+        <p className="mb-2 text-xs text-slate-400">
+          Enter the full annual bill and the period it covers — the app computes each party&apos;s share by day count and places it on the
+          correct side of the closing statement automatically.
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
+          <ProrationFields
+            key={propertyTaxAnnualAmount}
+            prefix="property_tax"
+            label="Property Tax"
+            defaultAnnualAmount={propertyTaxAnnualAmount}
+            status={propertyTaxStatus}
+            onStatusChange={setPropertyTaxStatus}
+            party={propertyTaxParty}
+            onPartyChange={setPropertyTaxParty}
+            initialAnswers={initialAnswers}
+          />
+          <ProrationFields
+            prefix="insurance"
+            label="Homeowner's Insurance"
+            defaultAnnualAmount={initialAnswers.insurance_annual_amount}
+            status={insuranceStatus}
+            onStatusChange={setInsuranceStatus}
+            party={insuranceParty}
+            onPartyChange={setInsuranceParty}
+            initialAnswers={initialAnswers}
+          />
+          <ProrationFields
+            prefix="city_property_tax"
+            label="City Property Tax"
+            defaultAnnualAmount={initialAnswers.city_property_tax_annual_amount}
+            status={cityTaxStatus}
+            onStatusChange={setCityTaxStatus}
+            party={cityTaxParty}
+            onPartyChange={setCityTaxParty}
+            initialAnswers={initialAnswers}
+          />
+        </div>
+
+        <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Commissions &amp; Fees</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field name="buyer_broker_name" label="Buyer's Broker (if any)" defaultValue={initialAnswers.buyer_broker_name} />
           <Field name="buyer_broker_commission" label="Buyer Broker Commission ($)" defaultValue={initialAnswers.buyer_broker_commission} type="number" />
           <Field name="listing_broker_name" label="Listing Broker (if any)" defaultValue={initialAnswers.listing_broker_name} />

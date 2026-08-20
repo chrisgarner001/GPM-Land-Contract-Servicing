@@ -6,7 +6,8 @@ import ExcelJS from "exceljs";
 import { PDFDocument } from "pdf-lib";
 import type { Answers } from "./answers";
 import { isoToDisplay } from "@/domain/documents/isoDateFormat";
-import { buildDocxRenderData, dollarsToCents, formatMoney } from "./renderData";
+import { buildClosingStatementInput, buildDocxRenderData, dollarsToCents, formatMoney } from "./renderData";
+import { buildClosingStatement, type LineItem } from "./closingStatement";
 
 const TEMPLATES_DIR = path.join(process.cwd(), "src", "document-templates", "land-contract-package");
 
@@ -41,18 +42,49 @@ function renderDocx(templateFile: string, renderData: Record<string, string>): B
   return doc.getZip().generate({ type: "nodebuffer" });
 }
 
+// Writes a computed proration LineItem into a row that has 4 possible target
+// cells (A=Seller Debit, B=Seller Credit, D=Buyer Debit, E=Buyer Credit) —
+// unlike the fixed-side fee rows, a proration can legitimately land on either
+// side of either ledger depending on prepaid/arrears + which party pays (see
+// closingStatement.ts). Copies the currency format from the row's
+// already-formatted cell since the other 3 cells start out blank.
+function writeProrationRow(sheet: ExcelJS.Worksheet, row: number, line: LineItem | undefined) {
+  const numFmt = sheet.getCell(`D${row}`).numFmt;
+  const set = (col: string, value: number) => {
+    const cell = sheet.getCell(`${col}${row}`);
+    cell.value = value;
+    cell.numFmt = numFmt;
+  };
+  if (!line) {
+    set("D", 0);
+    return;
+  }
+  if (line.sellerDebit !== undefined) {
+    set("A", line.sellerDebit);
+    set("E", line.buyerCredit ?? 0);
+  } else if (line.sellerCredit !== undefined) {
+    set("B", line.sellerCredit);
+    set("D", line.buyerDebit ?? 0);
+  } else {
+    set("D", line.buyerDebit ?? 0);
+  }
+}
+
 async function renderClosingStatement(a: Answers): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(path.join(TEMPLATES_DIR, "Closing Statement.xlsx"));
   const sheet = wb.getWorksheet(1)!;
 
   const dollars = (v: string | undefined) => dollarsToCents(v) / 100;
-  sheet.getCell("D10").value = dollars(a.purchase_price);
-  sheet.getCell("E11").value = dollars(a.earnest_money_deposit);
-  sheet.getCell("D14").value = dollars(a.property_tax_proration);
-  sheet.getCell("D15").value = dollars(a.insurance_proration);
-  sheet.getCell("D16").value = dollars(a.city_property_tax_proration);
-  sheet.getCell("E17").value = dollars(a.original_principal);
+  const result = buildClosingStatement(buildClosingStatementInput(a));
+  const lineFor = (description: string) => result.lineItems.find((li) => li.description === description);
+
+  sheet.getCell("D10").value = lineFor("Sales Price of Property")?.buyerDebit ?? 0;
+  sheet.getCell("E11").value = lineFor("Earnest Money Deposit")?.buyerCredit ?? 0;
+  writeProrationRow(sheet, 14, lineFor("Property Tax"));
+  writeProrationRow(sheet, 15, lineFor("Homeowner's Insurance Premium"));
+  writeProrationRow(sheet, 16, lineFor("City Property Tax"));
+  sheet.getCell("E17").value = lineFor("Existing Land Contract Balance Assumed")?.buyerCredit ?? 0;
   sheet.getCell("A20").value = dollars(a.buyer_broker_commission);
   sheet.getCell("A21").value = dollars(a.listing_broker_commission);
   sheet.getCell("D24").value = dollars(a.loan_origination_fee);
