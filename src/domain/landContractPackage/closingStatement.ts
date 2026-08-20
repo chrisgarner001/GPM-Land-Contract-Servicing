@@ -37,32 +37,34 @@ export interface SimpleFee {
   amount: number;
 }
 
-export interface ProrationInput {
-  description: string;
-  /** Full annual (or full-period) amount being prorated */
+/**
+ * Escrow reserve setup for a recurring bill (property tax, insurance) the
+ * new escrow/impound account will pay out of in the future. This is NOT a
+ * buyer/seller proration — per Aaron Cox and how Annie has always run this
+ * (confirmed on a call with Jim Woodworth 8/20/26), the buyer alone funds
+ * their own reserve; the seller is never credited or debited for it.
+ *
+ * The lump sum collected at closing has to cover whatever portion of the
+ * CURRENT bill cycle will have already ticked by before the buyer's own
+ * monthly escrow payments start catching up, plus a standing cushion (2
+ * months, per that call, applied uniformly to every bill including
+ * insurance) so the account never runs adjacent to zero.
+ */
+export interface EscrowReserveInput {
+  /** The full annual bill this reserve is funding */
   annualAmount: number;
-  /** ISO date strings, e.g. "2024-01-01" */
-  periodStart: string;
-  periodEnd: string;
   /**
-   * "prepaid": paidBy already paid for the full period in advance
-   *            (e.g. seller prepaid homeowner's insurance or paid taxes
-   *            in advance) -> the other party reimburses paidBy's share.
-   * "arrears": the bill has NOT been paid yet and will be paid later,
-   *            after closing, by whichever party owns at the time it's due
-   *            (typical MI property tax/assessment) -> the party who will
-   *            eventually pay gets credited for the other party's share now.
+   * Start date of the bill cycle currently accruing (e.g. July 1 for a
+   * Michigan summer tax bill, December 1 for winter) — whichever occurrence
+   * is closest to, and no later than, firstPaymentDate. Omit for a bill with
+   * no accrual gap to fund (e.g. insurance, which the buyer brings paid
+   * current to closing) — only the cushion applies in that case.
    */
-  status: "prepaid" | "arrears";
-  /** Required when status === "prepaid": who already paid it */
-  paidBy?: Party;
-  /**
-   * Required when status === "arrears": who will actually pay the bill
-   * when it comes due (almost always "buyer" for MI property taxes,
-   * since the buyer owns the property going forward).
-   */
-  willPay?: Party;
-  dayCountConvention?: 360 | 365;
+  billPeriodStart?: string;
+  /** ISO date the buyer's first monthly (P&I + escrow) payment is due */
+  firstPaymentDate: string;
+  /** Months of standing safety buffer to collect on top of the accrual gap */
+  cushionMonths: number;
 }
 
 export interface ReimbursementInput {
@@ -98,9 +100,8 @@ export interface ClosingStatementInput {
   sellerReceivesSalePriceInCash?: boolean;
 
   commissions?: SimpleFee[]; // always Seller Debit
-  buyerFees?: SimpleFee[]; // straightforward Buyer Debit (loan fees, prepaid interest, buyer's title costs, etc.)
+  buyerFees?: SimpleFee[]; // straightforward Buyer Debit (loan fees, prepaid interest, escrow reserves, etc.)
   sellerFees?: SimpleFee[]; // straightforward Seller Debit
-  prorations?: ProrationInput[];
   reimbursements?: ReimbursementInput[];
 }
 
@@ -124,64 +125,31 @@ export interface ClosingStatementResult {
   cashDueToOrFromSeller: { amount: number; direction: "to seller" | "from seller" };
 }
 
-// ---------- Proration helper ----------
+// ---------- Escrow reserve helper ----------
 
-function daysBetween(a: Date, b: Date): number {
-  const MS_PER_DAY = 1000 * 60 * 60 * 24;
-  return Math.round((b.getTime() - a.getTime()) / MS_PER_DAY);
+export function monthlyEscrowAmount(annualAmount: number): number {
+  return round2(annualAmount / 12);
+}
+
+/** Whole calendar months from a to b (e.g. July 1 -> October 1 = 3), ignoring day-of-month. */
+function monthsBetween(a: string, b: string): number {
+  const start = new Date(a);
+  const end = new Date(b);
+  return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
 }
 
 /**
- * Splits an annual/period amount into seller's share and buyer's share
- * based on the closing date. Seller owns through the day before closing;
- * buyer owns from the closing date forward (standard MI convention —
- * adjust the +1 if your title company uses a different cutoff).
+ * The lump-sum reserve to collect at closing for one bill — see
+ * EscrowReserveInput for the reasoning. The month the buyer's first payment
+ * falls in is covered by that payment itself, not by the lump sum, so the
+ * accrual gap is the month count minus one (floored at zero: if the bill
+ * cycle hasn't even started yet relative to the first payment, there's no
+ * gap to fund, just the cushion).
  */
-export function splitProrationShares(
-  closingDate: string,
-  input: Pick<ProrationInput, "annualAmount" | "periodStart" | "periodEnd" | "dayCountConvention">
-): { sellerShare: number; buyerShare: number; sellerDays: number; buyerDays: number } {
-  const convention = input.dayCountConvention ?? 365;
-  const start = new Date(input.periodStart);
-  const end = new Date(input.periodEnd);
-  const closing = new Date(closingDate);
-
-  const totalDays = daysBetween(start, end) + 1;
-  const sellerDays = Math.max(0, daysBetween(start, closing));
-  const buyerDays = Math.max(0, totalDays - sellerDays);
-
-  const dailyRate = input.annualAmount / (convention === 360 ? 360 : totalDays);
-
-  return {
-    sellerShare: round2(dailyRate * sellerDays),
-    buyerShare: round2(dailyRate * buyerDays),
-    sellerDays,
-    buyerDays,
-  };
-}
-
-export function calculateProrationLine(closingDate: string, p: ProrationInput): LineItem {
-  const { sellerShare, buyerShare } = splitProrationShares(closingDate, p);
-
-  if (p.status === "prepaid") {
-    if (!p.paidBy) throw new Error(`Proration "${p.description}": paidBy is required when status is "prepaid"`);
-    if (p.paidBy === "seller") {
-      // Seller already paid for the whole period; buyer reimburses seller for buyer's share.
-      return { description: p.description, sellerCredit: buyerShare, buyerDebit: buyerShare };
-    } else {
-      return { description: p.description, buyerCredit: sellerShare, sellerDebit: sellerShare };
-    }
-  } else {
-    // arrears: bill unpaid, will be paid later by willPay
-    const willPay = p.willPay ?? "buyer";
-    if (willPay === "buyer") {
-      // Buyer will pay the full bill later, covering seller's period too ->
-      // seller owes buyer credit now for seller's portion.
-      return { description: p.description, sellerDebit: sellerShare, buyerCredit: sellerShare };
-    } else {
-      return { description: p.description, buyerDebit: buyerShare, sellerCredit: buyerShare };
-    }
-  }
+export function calculateEscrowReserveAmount(input: EscrowReserveInput): number {
+  const monthly = monthlyEscrowAmount(input.annualAmount);
+  const accrualGapMonths = input.billPeriodStart ? Math.max(0, monthsBetween(input.billPeriodStart, input.firstPaymentDate) - 1) : 0;
+  return round2((accrualGapMonths + input.cushionMonths) * monthly);
 }
 
 export function calculateReimbursementLine(r: ReimbursementInput): LineItem {
@@ -223,17 +191,12 @@ export function buildClosingStatement(input: ClosingStatementInput): ClosingStat
     lineItems.push({ description: "Existing Land Contract Balance Assumed", buyerCredit: input.assumedExistingBalance });
   }
 
-  // 4. Prorations
-  for (const p of input.prorations ?? []) {
-    lineItems.push(calculateProrationLine(input.closingDate, p));
-  }
-
-  // 5. Commissions — always seller debit
+  // 4. Commissions — always seller debit
   for (const c of input.commissions ?? []) {
     lineItems.push({ description: c.description, sellerDebit: c.amount });
   }
 
-  // 6. Straightforward buyer/seller fees
+  // 5. Straightforward buyer/seller fees (including escrow reserves)
   for (const f of input.buyerFees ?? []) {
     lineItems.push({ description: f.description, buyerDebit: f.amount });
   }
@@ -241,7 +204,7 @@ export function buildClosingStatement(input: ClosingStatementInput): ClosingStat
     lineItems.push({ description: f.description, sellerDebit: f.amount });
   }
 
-  // 7. Reimbursements (one party fronted a cost for the other pre-closing)
+  // 6. Reimbursements (one party fronted a cost for the other pre-closing)
   for (const r of input.reimbursements ?? []) {
     lineItems.push(calculateReimbursementLine(r));
   }

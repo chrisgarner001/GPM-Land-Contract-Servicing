@@ -1,7 +1,7 @@
 import { isoToDisplay } from "@/domain/documents/isoDateFormat";
 import { dollarsToWordsLowercase, numberToWordsLowercase } from "./numberToWords";
 import type { Answers } from "./answers";
-import type { ClosingStatementInput, ProrationInput, ReimbursementInput, SimpleFee } from "./closingStatement";
+import { calculateEscrowReserveAmount, type ClosingStatementInput, type ReimbursementInput, type SimpleFee } from "./closingStatement";
 
 export function dollarsToCents(value: string | undefined): number {
   const n = Math.round((Number(value) || 0) * 100);
@@ -122,30 +122,29 @@ export function buildDocxRenderData(a: Answers): Record<string, string> {
   };
 }
 
-function buildProrationInput(a: Answers, prefix: string, description: string): ProrationInput | null {
+// One-sided escrow reserve line for a bill the new impound account will pay
+// out of later — see calculateEscrowReserveAmount's own doc comment for why
+// this isn't a buyer/seller proration. Returns null when no annual amount was
+// entered, so the fee simply doesn't appear.
+function buildEscrowReserveFee(a: Answers, prefix: string, description: string, hasBillPeriod: boolean): SimpleFee | null {
   const annualAmount = dollarsToCents(a[`${prefix}_annual_amount`]) / 100;
-  const periodStart = a[`${prefix}_period_start`];
-  const periodEnd = a[`${prefix}_period_end`];
-  if (!annualAmount || !periodStart || !periodEnd) return null;
+  if (!annualAmount) return null;
 
-  const status = a[`${prefix}_status`] === "prepaid" ? "prepaid" : "arrears";
-  const party = a[`${prefix}_party`] === "seller" ? "seller" : "buyer";
+  const billPeriodStart = hasBillPeriod ? a[`${prefix}_period_start`] || undefined : undefined;
+  const firstPaymentDate = a.first_payment_date || a.closing_date || "";
+  const cushionMonths = Number(a.escrow_cushion_months) || 2;
 
   return {
     description,
-    annualAmount,
-    periodStart,
-    periodEnd,
-    status,
-    ...(status === "prepaid" ? { paidBy: party } : { willPay: party }),
+    amount: calculateEscrowReserveAmount({ annualAmount, billPeriodStart, firstPaymentDate, cushionMonths }),
   };
 }
 
 // Assembles the Closing Statement engine's input from the same flat Answers
-// bucket the Word templates read from. Only the 3 date-based prorations
-// (property tax, insurance, city property tax) route through the real
-// day-count math — everything else here is a straightforward one-sided fee
-// or a paid-in-advance reimbursement, matching the fixed rows already on
+// bucket the Word templates read from. Property tax / insurance / city
+// property tax feed the buyer's own escrow reserve (a one-sided fee, not a
+// seller proration) — everything else here is a straightforward one-sided
+// fee or a paid-in-advance reimbursement, matching the fixed rows already on
 // Closing Statement.xlsx.
 export function buildClosingStatementInput(a: Answers): ClosingStatementInput {
   const propertyAddress = [a.property_street, a.property_city, [a.property_state, a.property_zip].filter(Boolean).join(" ")]
@@ -162,7 +161,11 @@ export function buildClosingStatementInput(a: Answers): ClosingStatementInput {
     commissions.push({ description: `Listing Broker Commission: ${a.listing_broker_name ?? ""}`, amount: dollars(a.listing_broker_commission) });
   }
 
-  const buyerFees: SimpleFee[] = [];
+  const buyerFees: SimpleFee[] = [
+    buildEscrowReserveFee(a, "property_tax", "Property Tax", true),
+    buildEscrowReserveFee(a, "insurance", "Homeowner's Insurance Premium", false),
+    buildEscrowReserveFee(a, "city_property_tax", "City Property Tax", true),
+  ].filter((f): f is SimpleFee => f !== null);
   if (dollars(a.loan_origination_fee)) buyerFees.push({ description: "Loan Origination Fee: Success", amount: dollars(a.loan_origination_fee) });
   if (dollars(a.annual_insurance_premium)) {
     buyerFees.push({ description: "Homeowner's Insurance Premium (12 Months)", amount: dollars(a.annual_insurance_premium) });
@@ -177,12 +180,6 @@ export function buildClosingStatementInput(a: Answers): ClosingStatementInput {
     reimbursements.push({ description: "County Taxes paid by seller in advance", amount: dollars(a.county_taxes_paid_by_seller), paidBy: "seller" });
   }
 
-  const prorations = [
-    buildProrationInput(a, "property_tax", "Property Tax"),
-    buildProrationInput(a, "insurance", "Homeowner's Insurance Premium"),
-    buildProrationInput(a, "city_property_tax", "City Property Tax"),
-  ].filter((p): p is ProrationInput => p !== null);
-
   return {
     buyerName: a.buyer_name ?? "",
     sellerName: a.seller_name ?? "",
@@ -195,6 +192,5 @@ export function buildClosingStatementInput(a: Answers): ClosingStatementInput {
     commissions,
     buyerFees,
     reimbursements,
-    prorations,
   };
 }

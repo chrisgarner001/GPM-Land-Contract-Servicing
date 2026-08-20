@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildClosingStatement, calculateProrationLine, calculateReimbursementLine, splitProrationShares } from "./closingStatement";
+import { buildClosingStatement, calculateEscrowReserveAmount, calculateReimbursementLine, monthlyEscrowAmount } from "./closingStatement";
 
 describe("buildClosingStatement", () => {
   // Matches a real closing this engine was validated against — figures below
@@ -76,56 +76,60 @@ describe("buildClosingStatement", () => {
   });
 });
 
-describe("splitProrationShares", () => {
-  it("splits a full-year amount proportionally by days on each side of the closing date", () => {
-    const { sellerShare, buyerShare, sellerDays, buyerDays } = splitProrationShares("2024-07-01", {
-      annualAmount: 3650,
-      periodStart: "2024-01-01",
-      periodEnd: "2024-12-31",
-    });
-    // 2024 is a leap year: 366 days total, closing on day 183 (Jan1..Jun30 = 182 seller days)
-    expect(sellerDays).toBe(182);
-    expect(buyerDays).toBe(366 - 182);
-    expect(sellerShare + buyerShare).toBeCloseTo(3650, 1);
+describe("monthlyEscrowAmount", () => {
+  it("divides the annual bill by 12", () => {
+    expect(monthlyEscrowAmount(2220)).toBe(185);
   });
 });
 
-describe("calculateProrationLine", () => {
-  const baseInput = {
-    description: "Property Tax",
-    annualAmount: 3650,
-    periodStart: "2024-01-01",
-    periodEnd: "2024-12-31",
-  };
-
-  it("arrears + buyer will pay: seller is debited now, buyer credited now for seller's share", () => {
-    const line = calculateProrationLine("2024-07-01", { ...baseInput, status: "arrears", willPay: "buyer" });
-    expect(line.sellerDebit).toBeGreaterThan(0);
-    expect(line.buyerCredit).toBe(line.sellerDebit);
-    expect(line.sellerCredit).toBeUndefined();
-    expect(line.buyerDebit).toBeUndefined();
+// Figures below match the actual worked examples Jim Woodworth walked
+// through with Chris on the 8/20/26 call about how Annie sets up escrow at
+// closing — see the transcript in the shared drive. This is a one-sided
+// buyer reserve, never a seller proration: the buyer alone funds their own
+// future tax/insurance bills, with a standing 2-month cushion.
+describe("calculateEscrowReserveAmount", () => {
+  it("summer tax bill: collects the accrual gap (bill period start to first payment, minus the covered month) plus the cushion", () => {
+    // Bill period starts July 1; first payment October 1 -> 3 calendar months,
+    // minus the first-payment month itself = 2 months accrued gap, + 2 cushion = 4 months.
+    const amount = calculateEscrowReserveAmount({
+      annualAmount: 2220,
+      billPeriodStart: "2024-07-01",
+      firstPaymentDate: "2024-10-01",
+      cushionMonths: 2,
+    });
+    expect(amount).toBeCloseTo(4 * monthlyEscrowAmount(2220), 2);
   });
 
-  it("arrears + seller will pay: buyer is debited now, seller credited now for buyer's share", () => {
-    const line = calculateProrationLine("2024-07-01", { ...baseInput, status: "arrears", willPay: "seller" });
-    expect(line.buyerDebit).toBeGreaterThan(0);
-    expect(line.sellerCredit).toBe(line.buyerDebit);
+  it("winter tax bill: an accrual gap spanning back to last December still resolves the same way", () => {
+    // Bill period started last December 1; first payment October 1 -> 10 months,
+    // minus the covered month = 9 months accrued gap, + 2 cushion = 11 months.
+    const amount = calculateEscrowReserveAmount({
+      annualAmount: 2220,
+      billPeriodStart: "2023-12-01",
+      firstPaymentDate: "2024-10-01",
+      cushionMonths: 2,
+    });
+    expect(amount).toBeCloseTo(11 * monthlyEscrowAmount(2220), 2);
   });
 
-  it("prepaid by seller: buyer reimburses seller for buyer's share", () => {
-    const line = calculateProrationLine("2024-07-01", { ...baseInput, status: "prepaid", paidBy: "seller" });
-    expect(line.buyerDebit).toBeGreaterThan(0);
-    expect(line.sellerCredit).toBe(line.buyerDebit);
+  it("insurance (no billPeriodStart): only the cushion is collected, since the buyer brings a current paid policy to closing", () => {
+    // $1200/year insurance, 2-month cushion -> $200, matching the call's example exactly.
+    const amount = calculateEscrowReserveAmount({
+      annualAmount: 1200,
+      firstPaymentDate: "2024-10-01",
+      cushionMonths: 2,
+    });
+    expect(amount).toBe(200);
   });
 
-  it("prepaid by buyer: seller reimburses buyer for seller's share", () => {
-    const line = calculateProrationLine("2024-07-01", { ...baseInput, status: "prepaid", paidBy: "buyer" });
-    expect(line.sellerDebit).toBeGreaterThan(0);
-    expect(line.buyerCredit).toBe(line.sellerDebit);
-  });
-
-  it("throws when prepaid status is missing paidBy", () => {
-    expect(() => calculateProrationLine("2024-07-01", { ...baseInput, status: "prepaid" })).toThrow();
+  it("never goes negative when the bill cycle hasn't started relative to the first payment yet", () => {
+    const amount = calculateEscrowReserveAmount({
+      annualAmount: 1200,
+      billPeriodStart: "2025-01-01",
+      firstPaymentDate: "2024-10-01",
+      cushionMonths: 2,
+    });
+    expect(amount).toBe(2 * monthlyEscrowAmount(1200));
   });
 });
 

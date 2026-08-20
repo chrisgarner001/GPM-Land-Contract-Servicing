@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import type { Answers } from "@/domain/landContractPackage/answers";
+import { calculateEscrowReserveAmount, monthlyEscrowAmount } from "@/domain/landContractPackage/closingStatement";
 import { submitPackageAction, assessorLookupAction, type SubmitPackageState } from "../actions";
 
 const inputClass = "w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none";
@@ -49,51 +50,85 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-// One proration = an annual bill + the period it covers + who already paid it
-// (prepaid) or who will pay it later (arrears). The app computes the correct
-// buyer/seller split by day count and routes it to the correct ledger side —
-// see src/domain/landContractPackage/closingStatement.ts. Staff no longer
-// pre-computes the split by hand.
-function ProrationFields({
+// Funds the BUYER's own new escrow/impound reserve for one recurring bill —
+// never a seller proration (see calculateEscrowReserveAmount's doc comment).
+// The annual bill / 12 becomes the ongoing monthly escrow payment; a lump
+// sum (the accrual gap since the bill period started, plus the cushion) is
+// collected at closing. Bill-period start is omitted for insurance, since
+// the buyer brings a paid-current policy — only the cushion applies there.
+function EscrowReserveFields({
   prefix,
   label,
-  defaultAnnualAmount,
-  status,
-  onStatusChange,
-  party,
-  onPartyChange,
-  initialAnswers,
+  annualAmount,
+  onAnnualAmountChange,
+  periodStart,
+  onPeriodStartChange,
+  firstPaymentDate,
+  cushionMonths,
 }: {
   prefix: string;
   label: string;
-  defaultAnnualAmount: string;
-  status: string;
-  onStatusChange: (v: string) => void;
-  party: string;
-  onPartyChange: (v: string) => void;
-  initialAnswers: Answers;
+  annualAmount: string;
+  onAnnualAmountChange: (v: string) => void;
+  periodStart?: string;
+  onPeriodStartChange?: (v: string) => void;
+  firstPaymentDate: string;
+  cushionMonths: number;
 }) {
-  const isPrepaid = status === "prepaid";
+  const reserveDueAtClosing = useMemo(() => {
+    const annual = Number(annualAmount) || 0;
+    if (!annual) return null;
+    return calculateEscrowReserveAmount({
+      annualAmount: annual,
+      billPeriodStart: periodStart || undefined,
+      firstPaymentDate: firstPaymentDate || new Date().toISOString().slice(0, 10),
+      cushionMonths,
+    });
+  }, [annualAmount, periodStart, firstPaymentDate, cushionMonths]);
+
   return (
     <div className="grid grid-cols-1 gap-3 sm:col-span-3 sm:grid-cols-6 sm:items-end sm:border-t sm:border-slate-100 sm:pt-3">
       <div className="sm:col-span-2">
-        <Field name={`${prefix}_annual_amount`} label={`${label} — Annual Bill ($)`} defaultValue={defaultAnnualAmount} type="number" />
+        <label className={labelClass} htmlFor={`${prefix}_annual_amount`}>
+          {label} — Annual Bill ($)
+        </label>
+        <input
+          id={`${prefix}_annual_amount`}
+          name={`${prefix}_annual_amount`}
+          type="number"
+          step="0.01"
+          value={annualAmount}
+          onChange={(e) => onAnnualAmountChange(e.target.value)}
+          className={inputClass}
+        />
       </div>
-      <Field name={`${prefix}_period_start`} label="Bill Period Start" defaultValue={initialAnswers[`${prefix}_period_start`]} type="date" />
-      <Field name={`${prefix}_period_end`} label="Bill Period End" defaultValue={initialAnswers[`${prefix}_period_end`]} type="date" />
-      <div>
-        <label className={labelClass}>Status</label>
-        <select name={`${prefix}_status`} value={status} onChange={(e) => onStatusChange(e.target.value)} className={inputClass}>
-          <option value="arrears">Unpaid (arrears)</option>
-          <option value="prepaid">Already paid (prepaid)</option>
-        </select>
-      </div>
-      <div>
-        <label className={labelClass}>{isPrepaid ? "Already Paid By" : "Will Be Paid By"}</label>
-        <select name={`${prefix}_party`} value={party} onChange={(e) => onPartyChange(e.target.value)} className={inputClass}>
-          <option value="buyer">Buyer</option>
-          <option value="seller">Seller</option>
-        </select>
+      {onPeriodStartChange ? (
+        <div className="sm:col-span-2">
+          <label className={labelClass} htmlFor={`${prefix}_period_start`}>
+            Current Bill Period Starts
+          </label>
+          <input
+            id={`${prefix}_period_start`}
+            name={`${prefix}_period_start`}
+            type="date"
+            value={periodStart ?? ""}
+            onChange={(e) => onPeriodStartChange(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+      ) : (
+        <div className="sm:col-span-2" />
+      )}
+      <div className="sm:col-span-2 text-xs text-slate-500">
+        {reserveDueAtClosing !== null ? (
+          <>
+            Reserve due at closing: <span className="font-medium text-slate-700">${reserveDueAtClosing.toFixed(2)}</span>
+            <br />
+            Monthly escrow: ${monthlyEscrowAmount(Number(annualAmount) || 0).toFixed(2)}
+          </>
+        ) : (
+          "Enter the annual bill to see the reserve due at closing."
+        )}
       </div>
     </div>
   );
@@ -117,13 +152,19 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
   const [lookupPending, setLookupPending] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupOwner, setLookupOwner] = useState<string | null>(null);
+  const [firstPaymentDate, setFirstPaymentDate] = useState(initialAnswers.first_payment_date ?? "");
+  const [escrowCushionMonths, setEscrowCushionMonths] = useState(initialAnswers.escrow_cushion_months || "2");
   const [propertyTaxAnnualAmount, setPropertyTaxAnnualAmount] = useState(initialAnswers.property_tax_annual_amount ?? "");
-  const [propertyTaxStatus, setPropertyTaxStatus] = useState(initialAnswers.property_tax_status || "arrears");
-  const [propertyTaxParty, setPropertyTaxParty] = useState(initialAnswers.property_tax_party || "buyer");
-  const [insuranceStatus, setInsuranceStatus] = useState(initialAnswers.insurance_status || "prepaid");
-  const [insuranceParty, setInsuranceParty] = useState(initialAnswers.insurance_party || "seller");
-  const [cityTaxStatus, setCityTaxStatus] = useState(initialAnswers.city_property_tax_status || "arrears");
-  const [cityTaxParty, setCityTaxParty] = useState(initialAnswers.city_property_tax_party || "buyer");
+  const [propertyTaxPeriodStart, setPropertyTaxPeriodStart] = useState(initialAnswers.property_tax_period_start ?? "");
+  const [insuranceAnnualAmount, setInsuranceAnnualAmount] = useState(initialAnswers.insurance_annual_amount ?? "");
+  const [cityTaxAnnualAmount, setCityTaxAnnualAmount] = useState(initialAnswers.city_property_tax_annual_amount ?? "");
+  const [cityTaxPeriodStart, setCityTaxPeriodStart] = useState(initialAnswers.city_property_tax_period_start ?? "");
+
+  const cushionMonthsNumber = Number(escrowCushionMonths) || 2;
+  const computedMonthlyEscrow =
+    monthlyEscrowAmount(Number(propertyTaxAnnualAmount) || 0) +
+    monthlyEscrowAmount(Number(insuranceAnnualAmount) || 0) +
+    monthlyEscrowAmount(Number(cityTaxAnnualAmount) || 0);
 
   async function handleAssessorLookup() {
     setLookupError(null);
@@ -323,8 +364,25 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
           <Field name="interest_rate" label="Interest Rate (%)" defaultValue={initialAnswers.interest_rate} type="number" />
           <Field name="default_interest_rate" label="Default Interest Rate (%)" defaultValue={initialAnswers.default_interest_rate} type="number" />
           <Field name="monthly_pi_payment" label="Monthly P&amp;I Payment ($)" defaultValue={initialAnswers.monthly_pi_payment} type="number" />
-          <Field name="monthly_escrow_payment" label="Monthly Tax/Insurance Escrow ($)" defaultValue={initialAnswers.monthly_escrow_payment} type="number" />
-          <Field name="first_payment_date" label="First Payment Date" defaultValue={initialAnswers.first_payment_date} type="date" />
+          <div>
+            <label className={labelClass}>Monthly Tax/Insurance Escrow ($)</label>
+            <input value={computedMonthlyEscrow.toFixed(2)} disabled className={`${inputClass} bg-slate-50 text-slate-500`} />
+            <input type="hidden" name="monthly_escrow_payment" value={computedMonthlyEscrow.toFixed(2)} />
+            <p className="mt-1 text-xs text-slate-400">Computed from the annual tax/insurance bills below.</p>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="first_payment_date">
+              First Payment Date
+            </label>
+            <input
+              id="first_payment_date"
+              name="first_payment_date"
+              type="date"
+              value={firstPaymentDate}
+              onChange={(e) => setFirstPaymentDate(e.target.value)}
+              className={inputClass}
+            />
+          </div>
           <Field name="amortization_months" label="Amortization (months)" defaultValue={initialAnswers.amortization_months} type="number" />
           <Field name="balloon_date" label="Balloon / Payoff-By Date" defaultValue={initialAnswers.balloon_date} type="date" />
           <Field name="late_fee_amount" label="Late Fee ($)" defaultValue={initialAnswers.late_fee_amount} type="number" />
@@ -355,47 +413,58 @@ export default function PackageForm({ packageId, initialAnswers }: { packageId: 
         </div>
       </Card>
 
-      <Card title="Closing Statement — Prorations, Commissions &amp; Fees">
+      <Card title="Closing Statement — Escrow Reserve, Commissions &amp; Fees">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field name="earnest_money_deposit" label="Earnest Money Deposit ($)" defaultValue={initialAnswers.earnest_money_deposit} type="number" />
+          <div>
+            <label className={labelClass} htmlFor="escrow_cushion_months">
+              Escrow Cushion (months)
+            </label>
+            <input
+              id="escrow_cushion_months"
+              name="escrow_cushion_months"
+              type="number"
+              value={escrowCushionMonths}
+              onChange={(e) => setEscrowCushionMonths(e.target.value)}
+              className={inputClass}
+            />
+          </div>
         </div>
 
-        <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Prorations</p>
+        <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Buyer&apos;s New Escrow Reserve</p>
         <p className="mb-2 text-xs text-slate-400">
-          Enter the full annual bill and the period it covers — the app computes each party&apos;s share by day count and places it on the
-          correct side of the closing statement automatically.
+          This funds the buyer&apos;s own new escrow account — never a seller proration. The annual bill ÷ 12 becomes the ongoing monthly
+          escrow payment above; the reserve due at closing covers whatever part of the current bill cycle isn&apos;t caught up by the
+          buyer&apos;s own monthly payments yet, plus the cushion.
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
-          <ProrationFields
-            key={propertyTaxAnnualAmount}
+          <EscrowReserveFields
             prefix="property_tax"
             label="Property Tax"
-            defaultAnnualAmount={propertyTaxAnnualAmount}
-            status={propertyTaxStatus}
-            onStatusChange={setPropertyTaxStatus}
-            party={propertyTaxParty}
-            onPartyChange={setPropertyTaxParty}
-            initialAnswers={initialAnswers}
+            annualAmount={propertyTaxAnnualAmount}
+            onAnnualAmountChange={setPropertyTaxAnnualAmount}
+            periodStart={propertyTaxPeriodStart}
+            onPeriodStartChange={setPropertyTaxPeriodStart}
+            firstPaymentDate={firstPaymentDate}
+            cushionMonths={cushionMonthsNumber}
           />
-          <ProrationFields
+          <EscrowReserveFields
             prefix="insurance"
             label="Homeowner's Insurance"
-            defaultAnnualAmount={initialAnswers.insurance_annual_amount}
-            status={insuranceStatus}
-            onStatusChange={setInsuranceStatus}
-            party={insuranceParty}
-            onPartyChange={setInsuranceParty}
-            initialAnswers={initialAnswers}
+            annualAmount={insuranceAnnualAmount}
+            onAnnualAmountChange={setInsuranceAnnualAmount}
+            firstPaymentDate={firstPaymentDate}
+            cushionMonths={cushionMonthsNumber}
           />
-          <ProrationFields
+          <EscrowReserveFields
             prefix="city_property_tax"
             label="City Property Tax"
-            defaultAnnualAmount={initialAnswers.city_property_tax_annual_amount}
-            status={cityTaxStatus}
-            onStatusChange={setCityTaxStatus}
-            party={cityTaxParty}
-            onPartyChange={setCityTaxParty}
-            initialAnswers={initialAnswers}
+            annualAmount={cityTaxAnnualAmount}
+            onAnnualAmountChange={setCityTaxAnnualAmount}
+            periodStart={cityTaxPeriodStart}
+            onPeriodStartChange={setCityTaxPeriodStart}
+            firstPaymentDate={firstPaymentDate}
+            cushionMonths={cushionMonthsNumber}
           />
         </div>
 
