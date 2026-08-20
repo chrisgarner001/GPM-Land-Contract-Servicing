@@ -229,6 +229,23 @@ export default async function ContractOverviewPage({ params }: { params: Promise
         <Field label="Reserve Balance" value={formatCents(Math.max(0, reserveBalanceCents))} />
         <div className="mt-3">
           <RecordPaymentModal
+            // RecordPaymentModal seeds its editable fields (amount, escrow
+            // portion, late fee...) via useState(defaultX) — that only runs
+            // on mount, so if the contract's escrow settings (or any other
+            // default-affecting field) change while the modal is already
+            // mounted, its fields would silently keep showing the old
+            // defaults. Forces a remount whenever any of them change —
+            // same fix already used for OnlinePortalSection.
+            key={[
+              contract.currentPrincipalBalanceCents,
+              reserveBalanceCents,
+              escrowBalanceCents,
+              contract.paymentAmountCents,
+              currentEscrowPortionCents,
+              fullAmountDueCents,
+              amountDue.lateFeeCents,
+              unpaidChargesCents,
+            ].join("-")}
             contractId={contractId}
             contractNumber={contract.contractNumber}
             borrowerName={buyerContact?.displayName ?? "Unknown Buyer"}
