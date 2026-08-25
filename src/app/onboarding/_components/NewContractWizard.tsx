@@ -208,10 +208,26 @@ export default function NewContractWizard({
     }
   }
 
+  // A `<fieldset>` is always "barred from constraint validation" per the
+  // HTML spec — it has no value of its own, so fieldset.checkValidity()
+  // trivially returns true and never actually looks at the fields inside
+  // it. Check each descendant control directly instead.
+  function stepControls(fieldset: HTMLFieldSetElement | null): (HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement)[] {
+    if (!fieldset) return [];
+    return Array.from(fieldset.querySelectorAll("input, select, textarea"));
+  }
+
+  function stepIsValid(fieldset: HTMLFieldSetElement | null): boolean {
+    return stepControls(fieldset).every((el) => el.checkValidity());
+  }
+
+  function reportStepInvalid(fieldset: HTMLFieldSetElement | null): void {
+    stepControls(fieldset).find((el) => !el.checkValidity())?.reportValidity();
+  }
+
   function goNext() {
-    const currentRef = refs[step - 1];
-    if (currentRef.current && !currentRef.current.checkValidity()) {
-      currentRef.current.reportValidity();
+    if (!stepIsValid(refs[step - 1].current)) {
+      reportStepInvalid(refs[step - 1].current);
       return;
     }
     setStep((s) => Math.min(STEPS.length, s + 1));
@@ -230,23 +246,42 @@ export default function NewContractWizard({
   //
   // Save Draft is exempt — it's meant to work with whatever's filled in so
   // far, from any step, so it skips this validation loop entirely.
+  //
+  // Deliberately NOT wired via <form action={formAction}> — React resets a
+  // form's uncontrolled fields once an action bound that way completes
+  // without throwing, and a validation failure returned as `{ error }` is a
+  // normal return, not a throw. With all 4 steps sharing one physical
+  // <form>, that reset wiped every field on every step on ANY failure
+  // anywhere, not just the one that actually failed — which is what made a
+  // perfectly valid "existing lender" pick look rejected: some other
+  // required field (often another one on this same Lender/Funding step)
+  // failed, the whole form reset, and the lender select went back to its
+  // blank placeholder along with everything else. Calling formAction()
+  // directly, instead of letting the form's own action prop trigger it,
+  // sidesteps that automatic reset entirely.
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formEl = e.currentTarget;
     const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
-    if (submitter?.name === "intent" && submitter.value === "save") return;
+    const intent = submitter?.name === "intent" ? submitter.value : "create";
 
-    for (let i = 0; i < refs.length; i++) {
-      const ref = refs[i];
-      if (ref.current && !ref.current.checkValidity()) {
-        e.preventDefault();
-        setStep(i + 1);
-        requestAnimationFrame(() => ref.current?.reportValidity());
-        return;
+    if (intent !== "save") {
+      for (let i = 0; i < refs.length; i++) {
+        if (!stepIsValid(refs[i].current)) {
+          setStep(i + 1);
+          requestAnimationFrame(() => reportStepInvalid(refs[i].current));
+          return;
+        }
       }
     }
+
+    const formData = new FormData(formEl);
+    formData.set("intent", intent);
+    formAction(formData);
   }
 
   return (
-    <form action={formAction} onSubmit={handleSubmit} noValidate className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <form onSubmit={handleSubmit} noValidate className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       {state?.error && (
         <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
       )}
